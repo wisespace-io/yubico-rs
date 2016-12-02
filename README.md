@@ -1,5 +1,5 @@
 [![License](http://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/wisespace-io/yubico-rs/blob/master/LICENSE)
-[![](https://meritbadge.herokuapp.com/yubico)](https://crates.io/crates/yubico)
+[![Crates.io](https://img.shields.io/crates/v/yubico.svg)](https://crates.io/crates/yubico)
 
 # Yubico
 Yubikey client API library, [validation protocol version 2.0](https://developers.yubico.com/yubikey-val/Validation_Protocol_V2.0.html).
