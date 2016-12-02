@@ -7,8 +7,6 @@ Yubikey client API library, [validation protocol version 2.0](https://developers
 Enables integration with the Yubico validation platform, so you can use Yubikey's one-time-password in your Rust application,
 allowing a user to authenticate via Yubikey.
 
-IMPORTANT: WIP, signature verification hasn't been implemented yet.
-
 # Usage
 
 Add this to your Cargo.toml
