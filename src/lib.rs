@@ -12,7 +12,7 @@ use hyper::Client;
 use hyper::header::{Headers};
 use std::io::prelude::*;
 use base64::{encode, decode};
-use crypto::mac::{Mac};
+use crypto::mac::{Mac, MacResult};
 use crypto::hmac::Hmac;
 use crypto::sha1::Sha1;
 use rand::{thread_rng, Rng};
@@ -74,13 +74,15 @@ impl Yubico {
                 let mut query = format!("id={}&nonce={}&otp={}&sl=secure", self.client_id, nonce, otp);
 
                 let signature = self.build_signature(query.clone());
+                // Base 64 encode the resulting value according to RFC 4648
+                let encoded_signature = encode(signature.code());
 
                 // Append the value under key h to the message.
-                let signature_param = format!("&h={}", signature);
+                let signature_param = format!("&h={}", encoded_signature);
                 let encoded = utf8_percent_encode(signature_param.as_ref(), QUERY_ENCODE_SET).collect::<String>();
                 query.push_str(encoded.as_ref());
 
-                let request = Request {otp: otp, nonce: nonce, signature: signature, query: query};
+                let request = Request {otp: otp, nonce: nonce, signature: encoded_signature, query: query};
 
                 let pool = ThreadPool::new(3);
                 let (tx, rx) = channel();
@@ -122,12 +124,10 @@ impl Yubico {
     }
 
     //  1. Apply the HMAC-SHA-1 algorithm on the line as an octet string using the API key as key
-    //  2. Base 64 encode the resulting value according to RFC 4648
-    fn build_signature(&self, query: String) -> String {
+    fn build_signature(&self, query: String) -> MacResult {
         let mut hmac = Hmac::new(Sha1::new(), &self.key[..]);
         hmac.input(query.as_bytes());
-        let signature = encode(hmac.result().code());
-        format!("{}", signature)
+        hmac.result()
     }
 
     // Recommendation is that clients only check that the input consists of 32-48 printable characters
@@ -195,7 +195,10 @@ impl Yubico {
 
         let signature = self.build_signature(query.clone());
 
-        if signature == signature_response { true } else { false }
+
+        let decoded_signature = &decode(signature_response).unwrap()[..];
+
+        crypto::util::fixed_time_eq(signature.code(), decoded_signature)
     }
 
     fn build_response_map(&self, result: String) -> BTreeMap<String, String> {
