@@ -1,5 +1,6 @@
 #[macro_use] extern crate url;
 #[macro_use] extern crate hyper;
+extern crate hyper_native_tls;
 extern crate base64;
 extern crate crypto;
 extern crate rand;
@@ -8,14 +9,15 @@ extern crate threadpool;
 pub mod yubicoerror;
 
 use yubicoerror::YubicoError;
-use hyper::Client;
+use hyper::net::HttpsConnector;
+use hyper_native_tls::NativeTlsClient;
 use hyper::header::{Headers};
 use std::io::prelude::*;
 use base64::{encode, decode};
 use crypto::mac::{Mac, MacResult};
 use crypto::hmac::Hmac;
 use crypto::sha1::Sha1;
-use rand::{thread_rng, Rng};
+use rand::{OsRng, Rng};
 use threadpool::ThreadPool;
 use std::collections::BTreeMap;
 use std::sync::mpsc::{ channel, Sender };
@@ -69,8 +71,7 @@ impl Yubico {
         match self.printable_characters(otp.clone()) {
             false => Err(YubicoError::BadOTP),
             _ => {
-                // TODO: use OsRng to generate a most secure nonce
-                let nonce: String = thread_rng().gen_ascii_chars().take(40).collect();
+                let nonce: String = self.generate_nonce();
                 let mut query = format!("id={}&nonce={}&otp={}&sl=secure", self.client_id, nonce, otp);
 
                 let signature = self.build_signature(query.clone());
@@ -195,7 +196,6 @@ impl Yubico {
 
         let signature = self.build_signature(query.clone());
 
-
         let decoded_signature = &decode(signature_response).unwrap()[..];
 
         crypto::util::fixed_time_eq(signature.code(), decoded_signature)
@@ -213,7 +213,10 @@ impl Yubico {
     }
 
     pub fn get(&self, url: String) -> Result<String> {
-        let client = Client::new();
+        let ssl = NativeTlsClient::new().unwrap();
+        let connector = HttpsConnector::new(ssl);
+        let client = hyper::Client::with_connector(connector);
+
         let mut custom_headers = Headers::new();
         custom_headers.set(UserAgent("github.com/wisespace-io/yubico-rs".to_owned()));
 
@@ -222,5 +225,12 @@ impl Yubico {
         try!(res.read_to_string(&mut response));
 
         Ok(response)
+    }
+
+    fn generate_nonce(&self) -> String {
+        OsRng::new().unwrap()
+                    .gen_ascii_chars()
+                    .take(40)
+                    .collect()
     }
 }
