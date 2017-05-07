@@ -8,6 +8,7 @@ extern crate threadpool;
 
 pub mod yubicoerror;
 
+use std::ascii::AsciiExt;
 use yubicoerror::YubicoError;
 use hyper::net::HttpsConnector;
 use hyper_native_tls::NativeTlsClient;
@@ -62,7 +63,7 @@ impl Yubico {
     pub fn new(client_id: String, key: String) -> Self {
         Yubico {
             client_id: client_id,
-            key: decode(key.as_ref()).unwrap(),
+            key: decode(&key[..]).unwrap(),
         }
     }
 
@@ -70,7 +71,7 @@ impl Yubico {
     pub fn verify(&self, otp: String) -> Result<String> {
         match self.printable_characters(otp.clone()) {
             false => Err(YubicoError::BadOTP),
-            _ => {
+            _ => {                
                 let nonce: String = self.generate_nonce();
                 let mut query = format!("id={}&nonce={}&otp={}&sl=secure", self.client_id, nonce, otp);
 
@@ -133,7 +134,12 @@ impl Yubico {
 
     // Recommendation is that clients only check that the input consists of 32-48 printable characters
     fn printable_characters(&self, otp: String) -> bool {
-        if otp.len() < 32 || otp.len() > 48 { false } else { true }
+        for c in otp.chars() { 
+            if !c.is_ascii() { 
+                return false; 
+            }    
+        }
+        otp.len() > 32 && otp.len() < 48
     }
 
     fn process(&self, sender: Sender<Response>, api_host: &str, request: Request) {
@@ -146,18 +152,21 @@ impl Yubico {
                 let signature_response : &str = &*response_map.get("h").unwrap();
                 if !self.is_same_signature(signature_response, response_map.clone()) {
                     sender.send(Response::Signal(Err(YubicoError::SignatureMismatch))).unwrap();
+                    return;
                 }
 
                 // Check if "otp" in the response is the same as the "otp" supplied in the request.
                 let otp_response : &str = &*response_map.get("otp").unwrap();
                 if !request.otp.contains(otp_response) {
                     sender.send(Response::Signal(Err(YubicoError::OTPMismatch))).unwrap();
+                    return;
                 }
 
                 // Check if "nonce" in the response is the same as the "nonce" supplied in the request.
                 let nonce_response : &str = &*response_map.get("nonce").unwrap();
                 if !request.nonce.contains(nonce_response) {
                     sender.send(Response::Signal(Err(YubicoError::NonceMismatch))).unwrap();
+                    return;
                 }
 
                 // Check the status of the operation
@@ -195,7 +204,6 @@ impl Yubico {
         query.pop(); // remove last &
 
         let signature = self.build_signature(query.clone());
-
         let decoded_signature = &decode(signature_response).unwrap()[..];
 
         crypto::util::fixed_time_eq(signature.code(), decoded_signature)
