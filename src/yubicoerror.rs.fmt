@@ -4,6 +4,7 @@ use std::error;
 use std::fmt;
 use std::io::Error as ioError;
 use std::sync::mpsc::RecvError as channelError;
+use reqwest::{Response, StatusCode};
 
 #[derive(Debug)]
 pub enum YubicoError {
