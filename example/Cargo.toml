@@ -8,6 +8,10 @@ name = "otp"
 path = "src/otp.rs"
 
 [[bin]]
+name = "otp_custom"
+path = "src/otp_custom.rs"
+
+[[bin]]
 name = "challenge_response"
 path = "src/challenge_response.rs"
 

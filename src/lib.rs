@@ -29,6 +29,11 @@ use url::percent_encoding::{utf8_percent_encode, SIMPLE_ENCODE_SET};
 
 const VENDOR_ID: u16 = 0x1050;
 
+pub enum Slot {
+    Slot1,
+    Slot2,
+}
+
 define_encode_set! {
     /// This encode set is used in the URL parser for query strings.
     pub QUERY_ENCODE_SET = [SIMPLE_ENCODE_SET] | {'+', '='}
@@ -78,6 +83,10 @@ impl Yubico {
         }
 
         Err(YubicoError::DeviceNotFound)
+    }
+
+    pub fn challenge_response(&self, challenge: &[u8], device: HidDeviceInfo, slot: Slot) {
+
     }
 
     // Verify a provided OTP
