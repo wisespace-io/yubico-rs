@@ -6,6 +6,7 @@ extern crate reqwest;
 extern crate base64;
 extern crate crypto;
 extern crate rand;
+extern crate hidapi;
 extern crate threadpool;
 
 pub mod config;
@@ -13,6 +14,7 @@ pub mod yubicoerror;
 
 use config::Config;
 use yubicoerror::YubicoError;
+use hidapi::HidDeviceInfo;
 use reqwest::header::{Headers, UserAgent};
 use std::io::prelude::*;
 use base64::{encode, decode};
@@ -24,6 +26,8 @@ use threadpool::ThreadPool;
 use std::collections::BTreeMap;
 use std::sync::mpsc::{ channel, Sender };
 use url::percent_encoding::{utf8_percent_encode, SIMPLE_ENCODE_SET};
+
+const VENDOR_ID: u16 = 0x1050;
 
 define_encode_set! {
     /// This encode set is used in the URL parser for query strings.
@@ -55,11 +59,25 @@ impl Yubico {
     /// Creates a new Yubico instance.
     pub fn new<C, K>(client_id: C, key: K) -> Self
         where C: Into<String>, K: Into<String>
-    {
+    { 
         Yubico {
             client_id: client_id.into(),
-            key: decode(&key.into()[..]).unwrap(),
+            key: key.into().into_bytes(),
         }
+    }
+
+    pub fn find_yubikey(&self) -> Result<HidDeviceInfo> {
+        let mut devices: Vec<HidDeviceInfo> = Vec::new();
+
+        let api = hidapi::HidApi::new().unwrap();
+        for device in &api.devices() {
+            if device.vendor_id == VENDOR_ID {
+                devices.push(device.clone());
+                return Ok(devices[0].clone());
+            }
+        }
+
+        Err(YubicoError::DeviceNotFound)
     }
 
     // Verify a provided OTP
@@ -73,62 +91,72 @@ impl Yubico {
                 let nonce: String = self.generate_nonce();
                 let mut query = format!("id={}&nonce={}&otp={}&sl=secure", self.client_id, nonce, str_otp);
 
-                let signature = self.build_signature(query.clone());
-                // Base 64 encode the resulting value according to RFC 4648
-                let encoded_signature = encode(signature.code());
+                match self.build_signature(query.clone()) {
+                    Ok(signature) => {
+                        // Base 64 encode the resulting value according to RFC 4648
+                        let encoded_signature = encode(signature.code());
 
-                // Append the value under key h to the message.
-                let signature_param = format!("&h={}", encoded_signature);
-                let encoded = utf8_percent_encode(signature_param.as_ref(), QUERY_ENCODE_SET).collect::<String>();
-                query.push_str(encoded.as_ref());
+                        // Append the value under key h to the message.
+                        let signature_param = format!("&h={}", encoded_signature);
+                        let encoded = utf8_percent_encode(signature_param.as_ref(), QUERY_ENCODE_SET).collect::<String>();
+                        query.push_str(encoded.as_ref());
 
-                let request = Request {otp: str_otp, nonce: nonce, signature: encoded_signature, query: query};
+                        let request = Request {otp: str_otp, nonce: nonce, signature: encoded_signature, query: query};
 
-                let number_of_hosts = config.api_hosts.len();
-                let pool = ThreadPool::new(number_of_hosts);
-                let (tx, rx) = channel();
+                        let number_of_hosts = config.api_hosts.len();
+                        let pool = ThreadPool::new(number_of_hosts);
+                        let (tx, rx) = channel();
 
-                for api_host in config.api_hosts {
-                    let tx = tx.clone();
-                    let request = request.clone();
-                    let self_clone = self.clone(); //threads can't reference values which are not owned by the thread.
-                    pool.execute(move|| { self_clone.process(tx, api_host.as_str(), request) });
-                }
+                        for api_host in config.api_hosts {
+                            let tx = tx.clone();
+                            let request = request.clone();
+                            let self_clone = self.clone(); //threads can't reference values which are not owned by the thread.
+                            pool.execute(move|| { 
+                                self_clone.process(tx, api_host.as_str(), request) 
+                            });
+                        }
 
-                let mut results: Vec<Result<String>> = Vec::new();
-                for _ in 0..number_of_hosts {
-                    match rx.recv() {
-                        Ok(Response::Signal(result)) =>  {
-                            match result {
-                                Ok(_) => {
-                                    results.truncate(0);
+                        let mut results: Vec<Result<String>> = Vec::new();
+                        for _ in 0..number_of_hosts {
+                            match rx.recv() {
+                                Ok(Response::Signal(result)) =>  {
+                                    match result {
+                                        Ok(_) => {
+                                            results.truncate(0);
+                                            break
+                                        },
+                                        Err(_) => results.push(result),
+                                    }
+                                },
+                                Err(e) => {
+                                    results.push(Err(YubicoError::ChannelError(e)));
                                     break
                                 },
-                                Err(_) => results.push(result),
                             }
-                        },
-                        Err(e) => {
-                            results.push(Err(YubicoError::ChannelError(e)));
-                            break
-                        },
-                    }
-                }
+                        }
 
-                if results.len() == 0 {
-                    Ok("The OTP is valid.".into())
-                } else {
-                    let result = results.pop().unwrap();
-                    result
+                        if results.len() == 0 {
+                            Ok("The OTP is valid.".into())
+                        } else {
+                            let result = results.pop().unwrap();
+                            result
+                        }
+                    },
+                    Err(error) => {
+                        return Err(error)
+                    }
                 }
             },
         }
     }
 
     //  1. Apply the HMAC-SHA-1 algorithm on the line as an octet string using the API key as key
-    fn build_signature(&self, query: String) -> MacResult {
-        let mut hmac = Hmac::new(Sha1::new(), &self.key[..]);
+    fn build_signature(&self, query: String) -> Result<MacResult> {
+        let decoded_key = decode(&self.key)?;
+
+        let mut hmac = Hmac::new(Sha1::new(), &decoded_key);
         hmac.input(query.as_bytes());
-        hmac.result()
+        Ok(hmac.result())
     }
 
     // Recommendation is that clients only check that the input consists of 32-48 printable characters
@@ -202,10 +230,13 @@ impl Yubico {
         }
         query.pop(); // remove last &
 
-        let signature = self.build_signature(query.clone());
-        let decoded_signature = &decode(signature_response).unwrap()[..];
+        if let Ok(signature) = self.build_signature(query.clone()) {
+            let decoded_signature = &decode(signature_response).unwrap()[..];
 
-        crypto::util::fixed_time_eq(signature.code(), decoded_signature)
+            crypto::util::fixed_time_eq(signature.code(), decoded_signature)
+        } else {
+            return false;
+        }
     }
 
     fn build_response_map(&self, result: String) -> BTreeMap<String, String> {
@@ -231,7 +262,7 @@ impl Yubico {
             .send()?;
 
         let mut data = String::new();
-        try!(response.read_to_string(&mut data));
+        response.read_to_string(&mut data)?;
 
         Ok(data)
     }

@@ -4,6 +4,7 @@ use std::error;
 use std::fmt;
 use std::io::Error as ioError;
 use std::sync::mpsc::RecvError as channelError;
+use base64::DecodeError as base64Error;
 
 #[derive(Debug)]
 pub enum YubicoError {
@@ -11,6 +12,8 @@ pub enum YubicoError {
     HTTPStatusCode(reqwest::StatusCode),
     IOError(ioError),
     ChannelError(channelError),
+    DecodeError(base64Error),
+    DeviceNotFound,
     BadOTP,
     ReplayedOTP,
     BadSignature,
@@ -33,6 +36,7 @@ impl fmt::Display for YubicoError {
             YubicoError::HTTPStatusCode(code) => write!(f, "Error found: {}", code),
             YubicoError::IOError(ref err) => write!(f, "IO error: {}", err),
             YubicoError::ChannelError(ref err) => write!(f, "Channel error: {}", err),
+            YubicoError::DecodeError(ref err) => write!(f, "Decode  error: {}", err),            
             YubicoError::BadOTP => write!(f, "The OTP has invalid format."),
             YubicoError::ReplayedOTP => write!(f, "The OTP has already been seen by the service."),
             YubicoError::BadSignature => write!(f, "The HMAC signature verification failed."),
@@ -46,6 +50,7 @@ impl fmt::Display for YubicoError {
             YubicoError::OTPMismatch => write!(f, "OTP mismatch, It may be an attack attempt"),
             YubicoError::NonceMismatch => write!(f, "Nonce mismatch, It may be an attack attempt"),
             YubicoError::SignatureMismatch => write!(f, "Signature mismatch, It may be an attack attempt"),
+            YubicoError::DeviceNotFound => write!(f, "Device not found"),
         }
     }
 }
@@ -57,6 +62,7 @@ impl error::Error for YubicoError {
             YubicoError::HTTPStatusCode(_) => "200 not received",
             YubicoError::IOError(ref err) => err.description(),
             YubicoError::ChannelError(ref err) => err.description(),
+            YubicoError::DecodeError(ref err) => err.description(),
             YubicoError::BadOTP => "The OTP has invalid format.",
             YubicoError::ReplayedOTP => "The OTP has already been seen by the service.",
             YubicoError::BadSignature => "The HMAC signature verification failed.",
@@ -70,6 +76,7 @@ impl error::Error for YubicoError {
             YubicoError::OTPMismatch => "OTP in the response is the same as the supplied in the request. It may be an attack attempt",
             YubicoError::NonceMismatch => "NOnce in the response is the same as the supplied in the request. It may be an attack attempt",
             YubicoError::SignatureMismatch => "Signature in the response is the same as the supplied in the request. It may be an attack attempt",
+            YubicoError::DeviceNotFound => "Youbikey device not found",
         }
     }
 
@@ -79,6 +86,7 @@ impl error::Error for YubicoError {
             YubicoError::HTTPStatusCode(_) => None,
             YubicoError::IOError(ref err) => Some(err),
             YubicoError::ChannelError(ref err) => Some(err),
+            YubicoError::DecodeError(ref err) => Some(err),            
             YubicoError::BadOTP => None,
             YubicoError::ReplayedOTP => None,
             YubicoError::BadSignature => None,
@@ -92,6 +100,7 @@ impl error::Error for YubicoError {
             YubicoError::OTPMismatch => None,
             YubicoError::NonceMismatch => None,
             YubicoError::SignatureMismatch => None,
+            YubicoError::DeviceNotFound => None,
         }
     }
 }
@@ -117,5 +126,11 @@ impl From<ioError> for YubicoError {
 impl From<channelError> for YubicoError {
     fn from(err: channelError) -> YubicoError {
         YubicoError::ChannelError(err)
+    }
+}
+
+impl From<base64Error> for YubicoError {
+    fn from(err: base64Error) -> YubicoError {
+        YubicoError::DecodeError(err)
     }
 }

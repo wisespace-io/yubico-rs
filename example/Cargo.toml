@@ -1,7 +1,15 @@
 [package]
 name = "yubico-app"
-version = "0.1.0"
+version = "0.3.0"
 authors = ["Flavio Oliveira <flavio@wisespace.io>"]
+
+[[bin]]
+name = "otp"
+path = "src/otp.rs"
+
+[[bin]]
+name = "challenge_response"
+path = "src/challenge_response.rs"
 
 [dependencies]
 yubico = { path = "../" }

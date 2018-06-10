@@ -24,4 +24,5 @@ rand = "0.4"
 base64 = "0.9"
 threadpool = "1.7"
 rust-crypto = "^0.2"
+hidapi = "0.3"
 clippy = { version = "0.0.186", optional = true }
