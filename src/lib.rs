@@ -9,12 +9,13 @@ extern crate rand;
 extern crate hidapi;
 extern crate threadpool;
 
+mod manager;
 pub mod config;
 pub mod yubicoerror;
 
 use config::Config;
 use yubicoerror::YubicoError;
-use hidapi::HidDeviceInfo;
+use hidapi::{HidDeviceInfo};
 use reqwest::header::{Headers, UserAgent};
 use std::io::prelude::*;
 use base64::{encode, decode};
@@ -29,11 +30,6 @@ use url::percent_encoding::{utf8_percent_encode, SIMPLE_ENCODE_SET};
 
 const VENDOR_ID: u16 = 0x1050;
 
-pub enum Slot {
-    Slot1,
-    Slot2,
-}
-
 define_encode_set! {
     /// This encode set is used in the URL parser for query strings.
     pub QUERY_ENCODE_SET = [SIMPLE_ENCODE_SET] | {'+', '='}
@@ -41,6 +37,11 @@ define_encode_set! {
 
 /// The `Result` type used in this crate.
 type Result<T> = ::std::result::Result<T, YubicoError>;
+
+pub enum Slot {
+    Slot1,
+    Slot2,
+}
 
 enum Response {
     Signal(Result<String>),
@@ -58,6 +59,7 @@ pub struct Request {
 pub struct Yubico {
     client_id: String,
     key: Vec<u8>,
+    devices: Vec<HidDeviceInfo>,    
 }
 
 impl Yubico {
@@ -68,25 +70,33 @@ impl Yubico {
         Yubico {
             client_id: client_id.into(),
             key: key.into().into_bytes(),
+            devices: Vec::new(),            
         }
     }
 
-    pub fn find_yubikey(&self) -> Result<HidDeviceInfo> {
-        let mut devices: Vec<HidDeviceInfo> = Vec::new();
-
+    pub fn find_yubikey(&mut self) -> Result<HidDeviceInfo> {
         let api = hidapi::HidApi::new().unwrap();
         for device in &api.devices() {
             if device.vendor_id == VENDOR_ID {
-                devices.push(device.clone());
-                return Ok(devices[0].clone());
+                self.devices.push(device.clone());
+                return Ok(self.devices[0].clone());
             }
         }
 
         Err(YubicoError::DeviceNotFound)
     }
 
-    pub fn challenge_response(&self, challenge: &[u8], device: HidDeviceInfo, slot: Slot) {
+    pub fn challenge_response(&self, _challenge: &[u8], device: HidDeviceInfo, slot: Slot) {
+        let api = hidapi::HidApi::new().unwrap();
+        let _handler = manager::open(&api, device.vendor_id, device.product_id).unwrap();
 
+        let mut _command = manager::CommandType::ChallengeHmac1;
+
+        if let Slot::Slot2 = slot {
+            _command = manager::CommandType::ChallengeHmac2;
+        }
+
+        //let res = handler.write(&buf).unwrap();
     }
 
     // Verify a provided OTP

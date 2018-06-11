@@ -13,7 +13,9 @@ pub enum YubicoError {
     IOError(ioError),
     ChannelError(channelError),
     DecodeError(base64Error),
+    CommandNotSupported,
     DeviceNotFound,
+    OpenDeviceError,
     BadOTP,
     ReplayedOTP,
     BadSignature,
@@ -51,6 +53,8 @@ impl fmt::Display for YubicoError {
             YubicoError::NonceMismatch => write!(f, "Nonce mismatch, It may be an attack attempt"),
             YubicoError::SignatureMismatch => write!(f, "Signature mismatch, It may be an attack attempt"),
             YubicoError::DeviceNotFound => write!(f, "Device not found"),
+            YubicoError::OpenDeviceError => write!(f, "Can not open device"),
+            YubicoError::CommandNotSupported => write!(f, "Command Not Supported"),
         }
     }
 }
@@ -77,6 +81,8 @@ impl error::Error for YubicoError {
             YubicoError::NonceMismatch => "NOnce in the response is the same as the supplied in the request. It may be an attack attempt",
             YubicoError::SignatureMismatch => "Signature in the response is the same as the supplied in the request. It may be an attack attempt",
             YubicoError::DeviceNotFound => "Youbikey device not found",
+            YubicoError::OpenDeviceError => "Can not open device",
+            YubicoError::CommandNotSupported => "Command Not Supported",
         }
     }
 
@@ -101,6 +107,8 @@ impl error::Error for YubicoError {
             YubicoError::NonceMismatch => None,
             YubicoError::SignatureMismatch => None,
             YubicoError::DeviceNotFound => None,
+            YubicoError::OpenDeviceError => None,
+            YubicoError::CommandNotSupported => None,
         }
     }
 }
