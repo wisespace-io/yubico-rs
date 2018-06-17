@@ -16,4 +16,5 @@ name = "challenge_response"
 path = "src/challenge_response.rs"
 
 [dependencies]
+pretty-hex = "0.1.0"
 yubico = { path = "../" }

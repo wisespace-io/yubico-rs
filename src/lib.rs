@@ -6,22 +6,22 @@ extern crate reqwest;
 extern crate base64;
 extern crate crypto;
 extern crate rand;
-extern crate hidapi;
+extern crate libusb;
 extern crate threadpool;
+#[macro_use] extern crate bitflags;
 
+mod sec;
 mod manager;
 pub mod config;
 pub mod yubicoerror;
 
-use config::Config;
+use manager::{Frame};
+use config::{Config, Slot, Mode};
 use yubicoerror::YubicoError;
-use hidapi::{HidDeviceInfo};
+use libusb::{Context};
 use reqwest::header::{Headers, UserAgent};
 use std::io::prelude::*;
 use base64::{encode, decode};
-use crypto::mac::{Mac, MacResult};
-use crypto::hmac::Hmac;
-use crypto::sha1::Sha1;
 use rand::{OsRng, Rng};
 use threadpool::ThreadPool;
 use std::collections::BTreeMap;
@@ -29,6 +29,7 @@ use std::sync::mpsc::{ channel, Sender };
 use url::percent_encoding::{utf8_percent_encode, SIMPLE_ENCODE_SET};
 
 const VENDOR_ID: u16 = 0x1050;
+const CRC_RESIDUAL_OK: u16 = 0xf0b8;
 
 define_encode_set! {
     /// This encode set is used in the URL parser for query strings.
@@ -38,13 +39,43 @@ define_encode_set! {
 /// The `Result` type used in this crate.
 type Result<T> = ::std::result::Result<T, YubicoError>;
 
-pub enum Slot {
-    Slot1,
-    Slot2,
-}
-
 enum Response {
     Signal(Result<String>),
+}
+
+#[derive(Debug)]
+pub struct Hmac([u8; 20]);
+impl Drop for Hmac {
+    fn drop(&mut self) {
+        for i in self.0.iter_mut() {
+            *i = 0;
+        }
+    }
+}
+
+impl std::ops::Deref for Hmac {
+    type Target = [u8];
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Hmac {
+    pub fn check(&self, key: &sec::HmacKey, challenge: &[u8]) -> bool {
+        &self.0[..] == sec::hmac_sha1(key, challenge)
+    }
+}
+
+#[derive(Debug)]
+pub struct Aes128Block {
+    block: [u8; 16],
+}
+impl Drop for Aes128Block {
+    fn drop(&mut self) {
+        for i in self.block.iter_mut() {
+            *i = 0;
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -56,49 +87,123 @@ pub struct Request {
 }
 
 #[derive(Clone)]
+pub struct Device {
+    pub product_id: u16,
+    pub vendor_id: u16
+}
+
 pub struct Yubico {
-    client_id: String,
-    key: Vec<u8>,
-    devices: Vec<HidDeviceInfo>,    
+    context: Context,
 }
 
 impl Yubico {
     /// Creates a new Yubico instance.
-    pub fn new<C, K>(client_id: C, key: K) -> Self
-        where C: Into<String>, K: Into<String>
-    { 
+    pub fn new() -> Self { 
         Yubico {
-            client_id: client_id.into(),
-            key: key.into().into_bytes(),
-            devices: Vec::new(),            
+            context: Context::new().unwrap(),         
         }
     }
 
-    pub fn find_yubikey(&mut self) -> Result<HidDeviceInfo> {
-        let api = hidapi::HidApi::new().unwrap();
-        for device in &api.devices() {
-            if device.vendor_id == VENDOR_ID {
-                self.devices.push(device.clone());
-                return Ok(self.devices[0].clone());
+    pub fn find_yubikey(&mut self) -> Result<Device> {
+        for mut device in self.context.devices().unwrap().iter() {
+            let descr = device.device_descriptor().unwrap();
+            if descr.vendor_id() == VENDOR_ID {
+                let device = Device {
+                    product_id: descr.product_id(),
+                    vendor_id: descr.vendor_id()
+                };
+                return Ok(device);
             }
         }
 
         Err(YubicoError::DeviceNotFound)
     }
 
-    pub fn challenge_response(&self, _challenge: &[u8], device: HidDeviceInfo, slot: Slot) {
-        let api = hidapi::HidApi::new().unwrap();
-        let _handler = manager::open(&api, device.vendor_id, device.product_id).unwrap();
-
-        let mut _command = manager::CommandType::ChallengeHmac1;
-
-        if let Slot::Slot2 = slot {
-            _command = manager::CommandType::ChallengeHmac2;
+    pub fn challenge_response(&mut self, chall: &[u8], conf: Config) -> Result<(Hmac, Aes128Block)> {     
+        if let Mode::Sha1 = conf.mode {
+            self.challenge_response_sha1(chall, conf)     
+        } else {
+            self.challenge_response_otp(chall, conf)
         }
-
-        //let res = handler.write(&buf).unwrap();
     }
 
+    fn challenge_response_sha1(&mut self, chall: &[u8], conf: Config) -> Result<(Hmac, Aes128Block)> {
+        let mut hmac = Hmac([0; 20]);
+        let block = Aes128Block { block: [0; 16] };
+
+        match manager::open_device(&mut self.context, conf.vendor_id, conf.product_id) {
+            Some(mut handle) => {
+                let mut challenge = [0; 64];
+                
+                if conf.variable && chall.last() == Some(&0) {
+                    challenge = [0xff; 64];
+                }
+
+                let mut command = manager::Command::ChallengeHmac1;
+                if let Slot::Slot2 = conf.slot {
+                    command = manager::Command::ChallengeHmac2;
+                }
+
+                (&mut challenge[..chall.len()]).copy_from_slice(chall);
+                let d = Frame::new(challenge, command);
+                let mut buf = [0; 8];
+                manager::wait(&mut handle, |f| !f.contains(manager::Flags::SLOT_WRITE_FLAG), &mut buf)?;
+ 
+                manager::write_frame(&mut handle, &d)?;
+
+                // Read the response.
+                let mut response = [0; 36];
+                manager::read_response(&mut handle, &mut response)?;
+
+                // Check response.
+                if manager::crc16(&response[..22]) != CRC_RESIDUAL_OK {
+                    return Err(YubicoError::WrongCRC);
+                }
+
+                hmac.0.clone_from_slice(&response[..20]);
+
+                Ok((hmac, block))
+            },
+            None => Err(YubicoError::OpenDeviceError)
+        }
+    }
+    
+    fn challenge_response_otp(&mut self, chall: &[u8], conf: Config) -> Result<(Hmac, Aes128Block)> {
+        let hmac = Hmac([0; 20]);
+        let mut block = Aes128Block { block: [0; 16] };
+
+        match manager::open_device(&mut self.context, conf.vendor_id, conf.product_id) {
+            Some(mut handle) => {
+                let mut challenge = [0; 64];
+                (&mut challenge[..6]).copy_from_slice(chall);
+
+                let mut command = manager::Command::ChallengeOtp1;
+                if let Slot::Slot2 = conf.slot {
+                    command = manager::Command::ChallengeOtp2;
+                }
+
+                (&mut challenge[..chall.len()]).copy_from_slice(chall);
+                let d = Frame::new(challenge, command);
+                let mut buf = [0; 8];
+               
+                let mut response = [0; 36];
+                manager::wait(&mut handle, |f| !f.contains(manager::Flags::SLOT_WRITE_FLAG), &mut buf)?;
+                manager::write_frame(&mut handle, &d)?;
+                manager::read_response(&mut handle, &mut response)?;
+
+                // Check response.
+                if manager::crc16(&response[..18]) != CRC_RESIDUAL_OK {
+                    return Err(YubicoError::WrongCRC);
+                }
+
+                block.block.copy_from_slice(&response[..16]);
+
+                Ok((hmac, block))
+            },
+            None => Err(YubicoError::OpenDeviceError)
+        }
+    }
+    
     // Verify a provided OTP
     pub fn verify<S>(&self, otp: S, config: Config) -> Result<String>
         where S: Into<String>
@@ -108,9 +213,9 @@ impl Yubico {
             false => Err(YubicoError::BadOTP),
             _ => {                
                 let nonce: String = self.generate_nonce();
-                let mut query = format!("id={}&nonce={}&otp={}&sl=secure", self.client_id, nonce, str_otp);
-
-                match self.build_signature(query.clone()) {
+                let mut query = format!("id={}&nonce={}&otp={}&sl=secure", config.client_id, nonce, str_otp);
+       
+                match sec::build_signature(config.key.clone(), query.clone()) {
                     Ok(signature) => {
                         // Base 64 encode the resulting value according to RFC 4648
                         let encoded_signature = encode(signature.code());
@@ -129,9 +234,10 @@ impl Yubico {
                         for api_host in config.api_hosts {
                             let tx = tx.clone();
                             let request = request.clone();
-                            let self_clone = self.clone(); //threads can't reference values which are not owned by the thread.
+                            let cloned_key = config.key.clone();
                             pool.execute(move|| { 
-                                self_clone.process(tx, api_host.as_str(), request) 
+                                let handler = RequestHandler::new(cloned_key.to_vec());
+                                handler.process(tx, api_host.as_str(), request) 
                             });
                         }
 
@@ -169,15 +275,6 @@ impl Yubico {
         }
     }
 
-    //  1. Apply the HMAC-SHA-1 algorithm on the line as an octet string using the API key as key
-    fn build_signature(&self, query: String) -> Result<MacResult> {
-        let decoded_key = decode(&self.key)?;
-
-        let mut hmac = Hmac::new(Sha1::new(), &decoded_key);
-        hmac.input(query.as_bytes());
-        Ok(hmac.result())
-    }
-
     // Recommendation is that clients only check that the input consists of 32-48 printable characters
     fn printable_characters(&self, otp: String) -> bool {
         for c in otp.chars() { 
@@ -186,6 +283,25 @@ impl Yubico {
             }    
         }
         otp.len() > 32 && otp.len() < 48
+    }
+
+    fn generate_nonce(&self) -> String {
+        OsRng::new().unwrap()
+                    .gen_ascii_chars()
+                    .take(40)
+                    .collect()
+    }    
+}
+
+pub struct RequestHandler {
+    key: Vec<u8>,   
+}
+
+impl RequestHandler {
+    pub fn new(key: Vec<u8>) -> Self {
+        RequestHandler {
+            key: key
+        }
     }
 
     fn process(&self, sender: Sender<Response>, api_host: &str, request: Request) {
@@ -249,7 +365,7 @@ impl Yubico {
         }
         query.pop(); // remove last &
 
-        if let Ok(signature) = self.build_signature(query.clone()) {
+        if let Ok(signature) = sec::build_signature(self.key.clone(), query.clone()) {
             let decoded_signature = &decode(signature_response).unwrap()[..];
 
             crypto::util::fixed_time_eq(signature.code(), decoded_signature)
@@ -284,12 +400,5 @@ impl Yubico {
         response.read_to_string(&mut data)?;
 
         Ok(data)
-    }
-
-    fn generate_nonce(&self) -> String {
-        OsRng::new().unwrap()
-                    .gen_ascii_chars()
-                    .take(40)
-                    .collect()
     }
 }

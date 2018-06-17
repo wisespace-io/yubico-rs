@@ -2,6 +2,7 @@ extern crate reqwest;
 
 use std::error;
 use std::fmt;
+use libusb::Error as usbError;
 use std::io::Error as ioError;
 use std::sync::mpsc::RecvError as channelError;
 use base64::DecodeError as base64Error;
@@ -13,9 +14,12 @@ pub enum YubicoError {
     IOError(ioError),
     ChannelError(channelError),
     DecodeError(base64Error),
+    UsbError(usbError),
     CommandNotSupported,
     DeviceNotFound,
     OpenDeviceError,
+    CanNotWriteToDevice,
+    WrongCRC,
     BadOTP,
     ReplayedOTP,
     BadSignature,
@@ -38,7 +42,8 @@ impl fmt::Display for YubicoError {
             YubicoError::HTTPStatusCode(code) => write!(f, "Error found: {}", code),
             YubicoError::IOError(ref err) => write!(f, "IO error: {}", err),
             YubicoError::ChannelError(ref err) => write!(f, "Channel error: {}", err),
-            YubicoError::DecodeError(ref err) => write!(f, "Decode  error: {}", err),            
+            YubicoError::DecodeError(ref err) => write!(f, "Decode  error: {}", err), 
+            YubicoError::UsbError(ref err) => write!(f, "USB  error: {}", err),                       
             YubicoError::BadOTP => write!(f, "The OTP has invalid format."),
             YubicoError::ReplayedOTP => write!(f, "The OTP has already been seen by the service."),
             YubicoError::BadSignature => write!(f, "The HMAC signature verification failed."),
@@ -55,6 +60,8 @@ impl fmt::Display for YubicoError {
             YubicoError::DeviceNotFound => write!(f, "Device not found"),
             YubicoError::OpenDeviceError => write!(f, "Can not open device"),
             YubicoError::CommandNotSupported => write!(f, "Command Not Supported"),
+            YubicoError::WrongCRC => write!(f, "Wrong CRC"),            
+            YubicoError::CanNotWriteToDevice => write!(f, "Can not write to Device"),
         }
     }
 }
@@ -67,6 +74,7 @@ impl error::Error for YubicoError {
             YubicoError::IOError(ref err) => err.description(),
             YubicoError::ChannelError(ref err) => err.description(),
             YubicoError::DecodeError(ref err) => err.description(),
+            YubicoError::UsbError(ref err) => err.description(),            
             YubicoError::BadOTP => "The OTP has invalid format.",
             YubicoError::ReplayedOTP => "The OTP has already been seen by the service.",
             YubicoError::BadSignature => "The HMAC signature verification failed.",
@@ -83,6 +91,8 @@ impl error::Error for YubicoError {
             YubicoError::DeviceNotFound => "Youbikey device not found",
             YubicoError::OpenDeviceError => "Can not open device",
             YubicoError::CommandNotSupported => "Command Not Supported",
+            YubicoError::WrongCRC => "Wrong CRC",            
+            YubicoError::CanNotWriteToDevice => "Can not write to Device",            
         }
     }
 
@@ -92,7 +102,8 @@ impl error::Error for YubicoError {
             YubicoError::HTTPStatusCode(_) => None,
             YubicoError::IOError(ref err) => Some(err),
             YubicoError::ChannelError(ref err) => Some(err),
-            YubicoError::DecodeError(ref err) => Some(err),            
+            YubicoError::DecodeError(ref err) => Some(err),    
+            YubicoError::UsbError(ref err) => Some(err),                    
             YubicoError::BadOTP => None,
             YubicoError::ReplayedOTP => None,
             YubicoError::BadSignature => None,
@@ -108,7 +119,9 @@ impl error::Error for YubicoError {
             YubicoError::SignatureMismatch => None,
             YubicoError::DeviceNotFound => None,
             YubicoError::OpenDeviceError => None,
+            YubicoError::WrongCRC => None,            
             YubicoError::CommandNotSupported => None,
+            YubicoError::CanNotWriteToDevice => None,            
         }
     }
 }
@@ -140,5 +153,11 @@ impl From<channelError> for YubicoError {
 impl From<base64Error> for YubicoError {
     fn from(err: base64Error) -> YubicoError {
         YubicoError::DecodeError(err)
+    }
+}
+
+impl From<usbError> for YubicoError {
+    fn from(err: usbError) -> YubicoError {
+        YubicoError::UsbError(err)
     }
 }
