@@ -5,7 +5,7 @@ authors = ["Flavio Oliveira <flavio@wisespace.io>", "Pierre-Étienne Meunier <pe
 
 description = "Yubikey client API library"
 license = "MIT OR Apache-2.0"
-keywords = ["yubikey", "authentication", "encryption", "OTP", "Challange-Response"]
+keywords = ["yubikey", "authentication", "encryption", "OTP", "Challenge-Response"]
 categories = ["authentication"]
 repository = "https://github.com/wisespace-io/yubico-rs"
 readme = "README.md"
