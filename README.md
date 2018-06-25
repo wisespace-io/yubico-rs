@@ -11,7 +11,7 @@ Enables integration with the Yubico validation platform, so you can use Yubikey'
 
 - [X] Yubikey client API library, [validation protocol version 2.0](https://developers.yubico.com/yubikey-val/Validation_Protocol_V2.0.html).
 - [X] Challenge-Response
-- [ ] Configuration, not supported, you can use [Yubikey Personalization GUI](https://developers.yubico.com/yubikey-personalization-gui/)
+- [ ] Configuration, not supported yet.
 
 ## Usage
 
@@ -63,6 +63,8 @@ fn main() {
 ```
 
 ### Example Challenge-Response (HMAC MODE)
+
+Configure the yubikey with [Yubikey Personalization GUI](https://developers.yubico.com/yubikey-personalization-gui/)
 
 ```rust
 extern crate yubico;

@@ -1,12 +1,11 @@
 use std::time::Duration;
 use std::{thread, slice};
+use sec::{ crc16 };
 use yubicoerror::YubicoError;
 use libusb::{request_type, Direction, RequestType, Recipient, Context, DeviceHandle};
 
 #[allow(dead_code)]
 const DATA_SIZE: usize = 64;
-const PRESET_VALUE: u16 = 0xFFFF;
-const POLYNOMIAL: u16 = 0x8408;
 const HID_GET_REPORT: u8 = 0x01;
 const HID_SET_REPORT: u8 = 0x09;
 const REPORT_TYPE_FEATURE: u16 = 0x03;
@@ -139,21 +138,6 @@ pub fn read_response(handle: &mut DeviceHandle, response:&mut [u8]) -> Result<us
     }
     try!(write_reset(handle));
     Ok(r0)
-}
-
-pub fn crc16(data: &[u8]) -> u16 {
-    let mut crc_value = PRESET_VALUE;
-    for &b in data {
-        crc_value ^= b as u16;
-        for _ in 0..8 {
-            let j = crc_value & 1;
-            crc_value >>= 1;
-            if j != 0 {
-                crc_value ^= POLYNOMIAL
-            }
-        }
-    }
-    crc_value
 }
 
 #[repr(C)]

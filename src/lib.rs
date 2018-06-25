@@ -10,11 +10,15 @@ extern crate libusb;
 extern crate threadpool;
 #[macro_use] extern crate bitflags;
 
-mod sec;
+mod aes128;
 mod manager;
+
+pub mod sec;
 pub mod config;
 pub mod yubicoerror;
 
+use aes128::{Aes128Block};
+use sec::{ CRC_RESIDUAL_OK, crc16 };
 use manager::{Frame};
 use config::{Config, Slot, Mode};
 use yubicoerror::YubicoError;
@@ -29,7 +33,6 @@ use std::sync::mpsc::{ channel, Sender };
 use url::percent_encoding::{utf8_percent_encode, SIMPLE_ENCODE_SET};
 
 const VENDOR_ID: u16 = 0x1050;
-const CRC_RESIDUAL_OK: u16 = 0xf0b8;
 
 define_encode_set! {
     /// This encode set is used in the URL parser for query strings.
@@ -63,18 +66,6 @@ impl std::ops::Deref for Hmac {
 impl Hmac {
     pub fn check(&self, key: &sec::HmacKey, challenge: &[u8]) -> bool {
         &self.0[..] == sec::hmac_sha1(key, challenge)
-    }
-}
-
-#[derive(Debug)]
-pub struct Aes128Block {
-    block: [u8; 16],
-}
-impl Drop for Aes128Block {
-    fn drop(&mut self) {
-        for i in self.block.iter_mut() {
-            *i = 0;
-        }
     }
 }
 
@@ -156,7 +147,7 @@ impl Yubico {
                 manager::read_response(&mut handle, &mut response)?;
 
                 // Check response.
-                if manager::crc16(&response[..22]) != CRC_RESIDUAL_OK {
+                if crc16(&response[..22]) != CRC_RESIDUAL_OK {
                     return Err(YubicoError::WrongCRC);
                 }
 
@@ -192,7 +183,7 @@ impl Yubico {
                 manager::read_response(&mut handle, &mut response)?;
 
                 // Check response.
-                if manager::crc16(&response[..18]) != CRC_RESIDUAL_OK {
+                if crc16(&response[..18]) != CRC_RESIDUAL_OK {
                     return Err(YubicoError::WrongCRC);
                 }
 
