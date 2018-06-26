@@ -10,16 +10,20 @@ extern crate libusb;
 extern crate threadpool;
 #[macro_use] extern crate bitflags;
 
-mod aes128;
+mod otpmode;
 mod manager;
+mod hmacmode;
 
 pub mod sec;
 pub mod config;
+pub mod configure;
 pub mod yubicoerror;
 
-use aes128::{Aes128Block};
+use configure::{ DeviceConfig };
+use hmacmode::{ Hmac };
+use otpmode::{ Aes128Block };
 use sec::{ CRC_RESIDUAL_OK, crc16 };
-use manager::{Frame};
+use manager::{ Frame, Flags };
 use config::{Config, Slot, Mode};
 use yubicoerror::YubicoError;
 use libusb::{Context};
@@ -44,29 +48,6 @@ type Result<T> = ::std::result::Result<T, YubicoError>;
 
 enum Response {
     Signal(Result<String>),
-}
-
-#[derive(Debug)]
-pub struct Hmac([u8; 20]);
-impl Drop for Hmac {
-    fn drop(&mut self) {
-        for i in self.0.iter_mut() {
-            *i = 0;
-        }
-    }
-}
-
-impl std::ops::Deref for Hmac {
-    type Target = [u8];
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Hmac {
-    pub fn check(&self, key: &sec::HmacKey, challenge: &[u8]) -> bool {
-        &self.0[..] == sec::hmac_sha1(key, challenge)
-    }
 }
 
 #[derive(Clone)]
@@ -108,6 +89,31 @@ impl Yubico {
         }
 
         Err(YubicoError::DeviceNotFound)
+    }
+
+    // NOTE: Don't use it yet, it needs to be tested
+    pub fn write_config(&mut self, conf: Config, config: &mut DeviceConfig) -> Result<()> {
+        let mut command = manager::Command::ChallengeHmac1;
+        if let Slot::Slot2 = conf.slot {
+            command = manager::Command::ChallengeHmac2;
+        }
+
+        let d = config.to_frame(command);
+        let mut buf = [0; 8];
+
+        match manager::open_device(&mut self.context, conf.vendor_id, conf.product_id) {
+            Some(mut handle) => {
+                manager::wait(&mut handle, |f| !f.contains(Flags::SLOT_WRITE_FLAG), &mut buf)?;
+
+                // TODO: Should check version number.
+
+                manager::write_frame(&mut handle, &d)?;
+                manager::wait(&mut handle, |f| !f.contains(Flags::SLOT_WRITE_FLAG), &mut buf)?;
+
+                Ok(())
+            },
+            None => Err(YubicoError::OpenDeviceError)
+        }
     }
 
     pub fn challenge_response(&mut self, chall: &[u8], conf: Config) -> Result<(Hmac, Aes128Block)> {     

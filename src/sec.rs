@@ -1,41 +1,14 @@
-use rand::Rng;
 use crypto::sha1::Sha1;
 use crypto::hmac::Hmac;
 use crypto::mac::{Mac, MacResult};
 use yubicoerror::YubicoError;
 use base64::{decode};
+use hmacmode::HmacKey;
 
 const PRESET_VALUE: u16 = 0xFFFF;
 const POLYNOMIAL: u16 = 0x8408;
 const SHA1_DIGEST_SIZE: usize = 20;
 pub const CRC_RESIDUAL_OK: u16 = 0xf0b8;
-
-/// A secret key for HMAC.
-#[derive(Debug)]
-pub struct HmacKey([u8; 20]);
-impl Drop for HmacKey {
-    fn drop(&mut self) {
-        for i in self.0.iter_mut() {
-            *i = 0;
-        }
-    }
-}
-
-impl HmacKey {
-    pub fn from_slice(s: &[u8]) -> Self {
-        let mut key = HmacKey([0; 20]);
-        (&mut key.0).clone_from_slice(s);
-        key
-    }
-
-    pub fn generate<R:Rng>(mut rng: R) -> Self {
-        let mut key = HmacKey([0; 20]);
-        for i in key.0.iter_mut() {
-            *i = rng.gen()
-        }
-        key
-    }
-}
 
 //  1. Apply the HMAC-SHA-1 algorithm on the line as an octet string using the API key as key
 pub fn build_signature(key: Vec<u8>, query: String) -> Result<MacResult, YubicoError> {

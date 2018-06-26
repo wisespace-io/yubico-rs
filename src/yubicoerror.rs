@@ -20,6 +20,7 @@ pub enum YubicoError {
     OpenDeviceError,
     CanNotWriteToDevice,
     WrongCRC,
+    ConfigNotWritten,
     BadOTP,
     ReplayedOTP,
     BadSignature,
@@ -62,6 +63,7 @@ impl fmt::Display for YubicoError {
             YubicoError::CommandNotSupported => write!(f, "Command Not Supported"),
             YubicoError::WrongCRC => write!(f, "Wrong CRC"),            
             YubicoError::CanNotWriteToDevice => write!(f, "Can not write to Device"),
+            YubicoError::ConfigNotWritten => write!(f, "Configuration has failed")
         }
     }
 }
@@ -92,7 +94,8 @@ impl error::Error for YubicoError {
             YubicoError::OpenDeviceError => "Can not open device",
             YubicoError::CommandNotSupported => "Command Not Supported",
             YubicoError::WrongCRC => "Wrong CRC",            
-            YubicoError::CanNotWriteToDevice => "Can not write to Device",            
+            YubicoError::CanNotWriteToDevice => "Can not write to Device", 
+            YubicoError::ConfigNotWritten => "Can configure the Device"                       
         }
     }
 
@@ -121,7 +124,8 @@ impl error::Error for YubicoError {
             YubicoError::OpenDeviceError => None,
             YubicoError::WrongCRC => None,            
             YubicoError::CommandNotSupported => None,
-            YubicoError::CanNotWriteToDevice => None,            
+            YubicoError::CanNotWriteToDevice => None,
+            YubicoError::ConfigNotWritten => None                       
         }
     }
 }

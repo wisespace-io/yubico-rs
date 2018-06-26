@@ -1,7 +1,6 @@
+extern crate hex;
 extern crate yubico;
-extern crate pretty_hex;
 
-use pretty_hex::*;
 use std::ops::Deref;
 use yubico::{Yubico};
 use yubico::config::{Config, Slot, Mode};
@@ -25,7 +24,9 @@ fn main() {
 
        // Just for debug, lets check the hex
        let v: &[u8] = hmac_result.deref();
-       println!("{:?}", v.hex_dump());
+       let hex_string = hex::encode(v);
+
+       println!("{}", hex_string);       
      
    } else {
        println!("Yubikey not found");

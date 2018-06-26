@@ -24,7 +24,7 @@ pub struct Otp {
 
 /// A secret key for AES128 / OTP challenge-response.
 #[derive(Debug)]
-pub struct Aes128Key([u8; 16]);
+pub struct Aes128Key(pub [u8; 16]);
 impl Drop for Aes128Key {
     fn drop(&mut self) {
         for i in self.0.iter_mut() {
