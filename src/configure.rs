@@ -2,7 +2,8 @@ use std;
 use hmacmode::{ HmacKey };
 use otpmode::{ Aes128Key };
 use sec::{ crc16 };
-use manager::{ Command, Frame };
+use manager::Frame;
+use config::Command;
 
 const FIXED_SIZE: usize = 16;
 const UID_SIZE: usize = 6;
@@ -12,7 +13,7 @@ const ACC_CODE_SIZE: usize = 6;
 /// The configuration of a YubiKey.
 #[repr(C)]
 #[repr(packed)]
-pub struct DeviceConfig {
+pub struct DeviceModeConfig {
     pub fixed: [u8; FIXED_SIZE],
     pub uid: [u8; UID_SIZE],
     pub key: [u8; KEY_SIZE],
@@ -25,9 +26,9 @@ pub struct DeviceConfig {
     pub crc: u16,
 }
 
-impl std::default::Default for DeviceConfig {
+impl std::default::Default for DeviceModeConfig {
     fn default() -> Self {
-        DeviceConfig {
+        DeviceModeConfig {
             fixed: [0; FIXED_SIZE],
             uid: [0; UID_SIZE],
             key: [0; KEY_SIZE],
@@ -44,7 +45,7 @@ impl std::default::Default for DeviceConfig {
 
 const SIZEOF_CONFIG: usize = 52;
 
-impl DeviceConfig {
+impl DeviceModeConfig {
 
     #[doc(hidden)]
     pub fn to_frame(&mut self, command: Command) -> Frame {
@@ -52,14 +53,14 @@ impl DeviceConfig {
         // First set CRC.
         self.crc = {
             let first_fields = unsafe {
-                std::slice::from_raw_parts(self as *const DeviceConfig as *const u8, SIZEOF_CONFIG - 2)
+                std::slice::from_raw_parts(self as *const DeviceModeConfig as *const u8, SIZEOF_CONFIG - 2)
             };
             (0xffff - crc16(&first_fields)).to_le()
         };
 
         // Then write to the payload.
         let s = unsafe {
-            std::slice::from_raw_parts(self as *const DeviceConfig as *const u8, SIZEOF_CONFIG)
+            std::slice::from_raw_parts(self as *const DeviceModeConfig as *const u8, SIZEOF_CONFIG)
         };
         (&mut payload[..SIZEOF_CONFIG]).clone_from_slice(s);
 

@@ -10,16 +10,16 @@ extern crate libusb;
 extern crate threadpool;
 #[macro_use] extern crate bitflags;
 
-mod otpmode;
 mod manager;
-mod hmacmode;
-
+pub mod otpmode;
+pub mod hmacmode;
 pub mod sec;
 pub mod config;
 pub mod configure;
 pub mod yubicoerror;
 
-use configure::{ DeviceConfig };
+use config::Command;
+use configure::{ DeviceModeConfig };
 use hmacmode::{ Hmac };
 use otpmode::{ Aes128Block };
 use sec::{ CRC_RESIDUAL_OK, crc16 };
@@ -91,14 +91,8 @@ impl Yubico {
         Err(YubicoError::DeviceNotFound)
     }
 
-    // NOTE: Don't use it yet, it needs to be tested
-    pub fn write_config(&mut self, conf: Config, config: &mut DeviceConfig) -> Result<()> {
-        let mut command = manager::Command::ChallengeHmac1;
-        if let Slot::Slot2 = conf.slot {
-            command = manager::Command::ChallengeHmac2;
-        }
-
-        let d = config.to_frame(command);
+    pub fn write_config(&mut self, conf: Config, device_config: &mut DeviceModeConfig) -> Result<()> {
+        let d = device_config.to_frame(conf.command);
         let mut buf = [0; 8];
 
         match manager::open_device(&mut self.context, conf.vendor_id, conf.product_id) {
@@ -136,9 +130,9 @@ impl Yubico {
                     challenge = [0xff; 64];
                 }
 
-                let mut command = manager::Command::ChallengeHmac1;
+                let mut command = Command::ChallengeHmac1;
                 if let Slot::Slot2 = conf.slot {
-                    command = manager::Command::ChallengeHmac2;
+                    command = Command::ChallengeHmac2;
                 }
 
                 (&mut challenge[..chall.len()]).copy_from_slice(chall);
@@ -174,9 +168,9 @@ impl Yubico {
                 let mut challenge = [0; 64];
                 (&mut challenge[..6]).copy_from_slice(chall);
 
-                let mut command = manager::Command::ChallengeOtp1;
+                let mut command = Command::ChallengeOtp1;
                 if let Slot::Slot2 = conf.slot {
-                    command = manager::Command::ChallengeOtp2;
+                    command = Command::ChallengeOtp2;
                 }
 
                 (&mut challenge[..chall.len()]).copy_from_slice(chall);

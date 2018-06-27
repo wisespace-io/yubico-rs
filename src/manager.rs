@@ -1,3 +1,4 @@
+use config::Command;
 use std::time::Duration;
 use std::{thread, slice};
 use sec::{ crc16 };
@@ -160,13 +161,4 @@ impl Frame {
         f.crc = crc16(&f.payload).to_le();
         f
     }    
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(u8)]
-pub enum Command {
-    ChallengeOtp1 = 0x20,
-    ChallengeOtp2 = 0x28,
-    ChallengeHmac1 = 0x30,
-    ChallengeHmac2 = 0x38,
 }

@@ -16,6 +16,15 @@ pub enum Mode {
     Otp,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(u8)]
+pub enum Command {
+    ChallengeOtp1 = 0x20,
+    ChallengeOtp2 = 0x28,
+    ChallengeHmac1 = 0x30,
+    ChallengeHmac2 = 0x38,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Config {
     pub client_id: String,
@@ -25,6 +34,7 @@ pub struct Config {
     pub variable: bool,
     pub slot: Slot,
     pub mode: Mode,
+    pub command: Command,
     pub api_hosts: Vec<String>,
 }
 
@@ -39,6 +49,7 @@ impl Config {
             variable: true,
             slot: Slot::Slot1,
             mode: Mode::Sha1,
+            command: Command::ChallengeHmac1,
             api_hosts: build_hosts(),
         }
     }
@@ -86,6 +97,11 @@ impl Config {
         self.mode = mode;
         self
     }
+
+    pub fn set_command(mut self, command: Command) -> Self {
+        self.command = command;
+        self
+    }    
 }
 
 fn build_hosts() -> Vec<String> {
