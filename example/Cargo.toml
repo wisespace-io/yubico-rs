@@ -15,6 +15,11 @@ path = "src/otp_custom.rs"
 name = "challenge_response"
 path = "src/challenge_response.rs"
 
+[[bin]]
+name = "configuration"
+path = "src/configuration.rs"
+
 [dependencies]
 hex = "0.3.2"
+rand = "0.5.3"
 yubico = { path = "../" }

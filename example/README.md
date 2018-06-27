@@ -8,6 +8,10 @@ cargo run --release --bin "otp"
 
 cargo run --release --bin "otp_custom"
 
+## Device Configuration
+
+cargo run --release --bin "configuration"
+
 ## Challenge-Response (Offline)
 
 cargo run --release --bin "challenge_response"

@@ -19,6 +19,12 @@ pub enum Mode {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
 pub enum Command {
+    Configuration1 = 0x01,
+    Configuration2 = 0x03,
+    Update1 = 0x04,
+    Update2 = 0x05,
+    Swap = 0x06,
+    DeviceConfig = 0x11,       
     ChallengeOtp1 = 0x20,
     ChallengeOtp2 = 0x28,
     ChallengeHmac1 = 0x30,
