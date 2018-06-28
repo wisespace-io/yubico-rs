@@ -91,6 +91,7 @@ fn main() {
         let mut rng = thread_rng();
 
         // Secret must have 20 bytes
+        // Used rand here, but you can set your own secret: let secret:&[u8] = b"my_awesome_secret_20";
         let secret: String = rng.sample_iter(&Alphanumeric).take(20).collect();
         let hmac_key: HmacKey = HmacKey::from_slice(secret.as_bytes());
 
