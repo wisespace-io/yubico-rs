@@ -10,7 +10,7 @@ Enables integration with the Yubico validation platform, so you can use Yubikey'
 ## Current features
 
 - [X] Yubikey client API library, [validation protocol version 2.0](https://developers.yubico.com/yubikey-val/Validation_Protocol_V2.0.html).
-- [X] Challenge-Response
+- [X] [Challenge-Response](https://wiki.archlinux.org/index.php/yubikey#Function_and_Application_of_Challenge-Response)
 - [x] Configuration.
 
 ## Usage
@@ -19,12 +19,12 @@ Add this to your Cargo.toml
 
 ```toml
 [dependencies]
-yubico = "0.3"
+yubico = "0.4"
 ```
 
 [Request your api key](https://upgrade.yubico.com/getapikey/).
 
-### Example with Default Servers
+### OTP with Default Servers
 
 ```rust
 extern crate yubico;
@@ -42,7 +42,7 @@ fn main() {
 }
 ```
 
-## Example with custom API servers
+## OTP with custom API servers
 
 ```rust
 extern crate yubico;
@@ -62,7 +62,7 @@ fn main() {
 }
 ```
 
-### Configure Yubikey (HMAC MODE)
+### Configure Yubikey (HMAC-SHA1 mode)
 
 Alternatively you can configure the yubikey with [Yubikey Personalization GUI](https://developers.yubico.com/yubikey-personalization-gui/)
 
@@ -86,12 +86,12 @@ fn main() {
        let config = Config::default()
            .set_vendor_id(device.vendor_id)
            .set_product_id(device.product_id)
-           .set_command(Command::Configuration1);
+           .set_command(Command::Configuration2);
 
         let mut rng = thread_rng();
 
         // Secret must have 20 bytes
-        // Used rand here, but you can set your own secret: let secret:&[u8] = b"my_awesome_secret_20";
+        // Used rand here, but you can set your own secret: let secret: &[u8; 20] = b"my_awesome_secret_20";
         let secret: String = rng.sample_iter(&Alphanumeric).take(20).collect();
         let hmac_key: HmacKey = HmacKey::from_slice(secret.as_bytes());
 
@@ -103,14 +103,14 @@ fn main() {
         } else {
             println!("Device configured");
         }
-     
+
    } else {
        println!("Yubikey not found");
    }
 }
 ```
 
-### Example Challenge-Response (HMAC MODE)
+### Example Challenge-Response (HMAC-SHA1 mode)
 
 Configure the yubikey with [Yubikey Personalization GUI](https://developers.yubico.com/yubikey-personalization-gui/)
 
@@ -138,7 +138,7 @@ fn main() {
 
        // Challenge can not be greater than 64 bytes
        let challenge = String::from("mychallenge");
-       let (hmac_result, _) = yubi.challenge_response(challenge.as_bytes(), config).unwrap();
+       let (hmac_result, _) = yubi.challenge_response_hmac(challenge.as_bytes(), config).unwrap();
 
        // Just for debug, lets check the hex
        let v: &[u8] = hmac_result.deref();

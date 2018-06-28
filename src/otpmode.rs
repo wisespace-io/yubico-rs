@@ -62,6 +62,13 @@ impl Drop for Aes128Block {
     }
 }
 
+impl std::ops::Deref for Aes128Block {
+    type Target = [u8];
+    fn deref(&self) -> &Self::Target {
+        &self.block
+    }
+}
+
 impl Aes128Block {
     /// Decrypts an AES block as returned by the YubiKey. The caller
     /// must check that the `uid` field is equal to the known private

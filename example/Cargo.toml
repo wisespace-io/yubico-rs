@@ -12,12 +12,20 @@ name = "otp_custom"
 path = "src/otp_custom.rs"
 
 [[bin]]
-name = "challenge_response"
-path = "src/challenge_response.rs"
+name = "configuration_hmac"
+path = "src/configuration_hmac.rs"
 
 [[bin]]
-name = "configuration"
-path = "src/configuration.rs"
+name = "challenge_response_hmac"
+path = "src/challenge_response_hmac.rs"
+
+[[bin]]
+name = "configuration_otp"
+path = "src/configuration_otp.rs"
+
+[[bin]]
+name = "challenge_response_otp"
+path = "src/challenge_response_otp.rs"
 
 [dependencies]
 hex = "0.3.2"

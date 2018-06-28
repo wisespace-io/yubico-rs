@@ -8,10 +8,18 @@ cargo run --release --bin "otp"
 
 cargo run --release --bin "otp_custom"
 
-## Device Configuration
+## Device Configuration (HMAC)
 
-cargo run --release --bin "configuration"
+cargo run --release --bin "configuration_hmac"
 
-## Challenge-Response (Offline)
+## Challenge-Response (HMAC)
 
-cargo run --release --bin "challenge_response"
+cargo run --release --bin "challenge_response_hmac"
+
+## Device Configuration (OTP)
+
+cargo run --release --bin "configuration_otp"
+
+## Challenge-Response (OTP)
+
+cargo run --release --bin "challenge_response_otp"

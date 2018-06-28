@@ -71,13 +71,13 @@ impl DeviceModeConfig {
     /// mode. This mode has two sub-modes: if `variable` is `true`,
     /// the challenges can be of variable length up to 63 bytes. Else,
     /// all challenges must be exactly 64 bytes long.
-    pub fn challenge_response_hmac(&mut self, secret: &HmacKey, variable: bool, button:bool) {
+    pub fn challenge_response_hmac(&mut self, secret: &HmacKey, variable: bool, button_press: bool) {
         self.tkt_flags = TicketFlags::empty();
         self.cfg_flags = ConfigFlags::empty();
         self.ext_flags = ExtendedFlags::empty();
 
         self.tkt_flags.insert(TicketFlags::CHAL_RESP);
-        self.cfg_flags.insert(if button { ConfigFlags::CHAL_HMAC | ConfigFlags::CHAL_BTN_TRIG } else { ConfigFlags::CHAL_HMAC });
+        self.cfg_flags.insert(if button_press { ConfigFlags::CHAL_HMAC | ConfigFlags::CHAL_BTN_TRIG } else { ConfigFlags::CHAL_HMAC });
         if variable {
             self.cfg_flags.insert(ConfigFlags::HMAC_LT64)
         } else {
@@ -89,13 +89,13 @@ impl DeviceModeConfig {
     }
 
     /// Sets the configuration in challenge-response, OTP mode.
-    pub fn challenge_response_otp(&mut self, secret: &Aes128Key, priv_id: &[u8;6], button: bool) {
+    pub fn challenge_response_otp(&mut self, secret: &Aes128Key, priv_id: &[u8;6], button_press: bool) {
         self.tkt_flags = TicketFlags::empty();
         self.cfg_flags = ConfigFlags::empty();
         self.ext_flags = ExtendedFlags::empty();
 
         self.tkt_flags.insert(TicketFlags::CHAL_RESP);
-        self.cfg_flags.insert(if button { ConfigFlags::CHAL_YUBICO | ConfigFlags::CHAL_BTN_TRIG } else { ConfigFlags::CHAL_YUBICO });
+        self.cfg_flags.insert(if button_press { ConfigFlags::CHAL_YUBICO | ConfigFlags::CHAL_BTN_TRIG } else { ConfigFlags::CHAL_YUBICO });
 
         self.uid.copy_from_slice(priv_id);
         self.key.copy_from_slice(&secret.0);

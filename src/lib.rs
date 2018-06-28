@@ -24,7 +24,7 @@ use hmacmode::{ Hmac };
 use otpmode::{ Aes128Block };
 use sec::{ CRC_RESIDUAL_OK, crc16 };
 use manager::{ Frame, Flags };
-use config::{Config, Slot, Mode};
+use config::{Config, Slot};
 use yubicoerror::YubicoError;
 use libusb::{Context};
 use reqwest::header::{Headers, UserAgent};
@@ -110,17 +110,8 @@ impl Yubico {
         }
     }
 
-    pub fn challenge_response(&mut self, chall: &[u8], conf: Config) -> Result<(Hmac, Aes128Block)> {     
-        if let Mode::Sha1 = conf.mode {
-            self.challenge_response_sha1(chall, conf)     
-        } else {
-            self.challenge_response_otp(chall, conf)
-        }
-    }
-
-    fn challenge_response_sha1(&mut self, chall: &[u8], conf: Config) -> Result<(Hmac, Aes128Block)> {
+    pub fn challenge_response_hmac(&mut self, chall: &[u8], conf: Config) -> Result<Hmac> {
         let mut hmac = Hmac([0; 20]);
-        let block = Aes128Block { block: [0; 16] };
 
         match manager::open_device(&mut self.context, conf.vendor_id, conf.product_id) {
             Some(mut handle) => {
@@ -153,20 +144,19 @@ impl Yubico {
 
                 hmac.0.clone_from_slice(&response[..20]);
 
-                Ok((hmac, block))
+                Ok(hmac)
             },
             None => Err(YubicoError::OpenDeviceError)
         }
     }
     
-    fn challenge_response_otp(&mut self, chall: &[u8], conf: Config) -> Result<(Hmac, Aes128Block)> {
-        let hmac = Hmac([0; 20]);
+    pub fn challenge_response_otp(&mut self, chall: &[u8], conf: Config) -> Result<Aes128Block> {
         let mut block = Aes128Block { block: [0; 16] };
 
         match manager::open_device(&mut self.context, conf.vendor_id, conf.product_id) {
             Some(mut handle) => {
                 let mut challenge = [0; 64];
-                (&mut challenge[..6]).copy_from_slice(chall);
+                //(&mut challenge[..6]).copy_from_slice(chall);
 
                 let mut command = Command::ChallengeOtp1;
                 if let Slot::Slot2 = conf.slot {
@@ -189,7 +179,7 @@ impl Yubico {
 
                 block.block.copy_from_slice(&response[..16]);
 
-                Ok((hmac, block))
+                Ok(block)
             },
             None => Err(YubicoError::OpenDeviceError)
         }
