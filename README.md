@@ -10,7 +10,7 @@ Enables integration with the Yubico validation platform, so you can use Yubikey'
 ## Current features
 
 - [X] Yubikey client API library, [validation protocol version 2.0](https://developers.yubico.com/yubikey-val/Validation_Protocol_V2.0.html).
-- [X] [Challenge-Response](https://wiki.archlinux.org/index.php/yubikey#Function_and_Application_of_Challenge-Response)
+- [X] [Challenge-Response](https://wiki.archlinux.org/index.php/yubikey#Function_and_Application_of_Challenge-Response), YubiKey 2.2 and later supports HMAC-SHA1 or Yubico challenge-response operations.
 - [x] Configuration.
 
 ## Usage
@@ -64,7 +64,8 @@ fn main() {
 
 ### Configure Yubikey (HMAC-SHA1 mode)
 
-Alternatively you can configure the yubikey with [Yubikey Personalization GUI](https://developers.yubico.com/yubikey-personalization-gui/)
+Note, please read about the [initial configuration](https://wiki.archlinux.org/index.php/yubikey#Initial_configuration)
+Alternatively you can configure the yubikey with the official [Yubikey Personalization GUI](https://developers.yubico.com/yubikey-personalization-gui/).
 
 ```rust
 extern crate rand;
