@@ -1,6 +1,6 @@
 [package]
 name = "yubico"
-version = "0.4.1"
+version = "0.4.2"
 authors = ["Flavio Oliveira <flavio@wisespace.io>", "Pierre-Étienne Meunier <pe@coturnix.fr>"]
 
 description = "Yubikey client API library"
@@ -19,14 +19,14 @@ path = "src/lib.rs"
 
 [dependencies]
 url = "1.7"
-reqwest = "0.8"
+reqwest = {version = "0.8", optional = true}
 rand = "0.4"
 base64 = "0.9"
 threadpool = "1.7"
 rust-crypto = "^0.2"
 libusb = "0.2"
 bitflags = "1.0.3"
-clippy = {version = "0.0", optional = true}
 
 [features]
-dev = ["clippy"]
+default = ["online"]
+online = ["reqwest"]

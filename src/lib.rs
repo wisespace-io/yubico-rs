@@ -1,8 +1,8 @@
-#![cfg_attr(feature = "clippy", feature(plugin))]
-#![cfg_attr(feature = "clippy", plugin(clippy))]
+#[cfg(feature = "online")]
+extern crate reqwest;
 
 #[macro_use] extern crate url;
-extern crate reqwest;
+
 extern crate base64;
 extern crate crypto;
 extern crate rand;
@@ -27,7 +27,10 @@ use manager::{ Frame, Flags };
 use config::{Config, Slot};
 use yubicoerror::YubicoError;
 use libusb::{Context};
+
+#[cfg(feature = "online")]
 use reqwest::header::{Headers, UserAgent};
+
 use std::io::prelude::*;
 use base64::{encode, decode};
 use rand::{OsRng, Rng};
@@ -186,6 +189,7 @@ impl Yubico {
     }
     
     // Verify a provided OTP
+    #[cfg(feature = "online")]
     pub fn verify<S>(&self, otp: S, config: Config) -> Result<String>
         where S: Into<String>
     {
@@ -277,10 +281,12 @@ impl Yubico {
     }    
 }
 
+#[cfg(feature = "online")]
 pub struct RequestHandler {
     key: Vec<u8>,   
 }
 
+#[cfg(feature = "online")]
 impl RequestHandler {
     pub fn new(key: Vec<u8>) -> Self {
         RequestHandler {

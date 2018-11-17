@@ -1,3 +1,5 @@
+
+#[cfg(feature = "online")]
 extern crate reqwest;
 
 use std::error;
@@ -9,7 +11,9 @@ use base64::DecodeError as base64Error;
 
 #[derive(Debug)]
 pub enum YubicoError {
+    #[cfg(feature = "online")]
     Network(reqwest::Error),
+    #[cfg(feature = "online")]
     HTTPStatusCode(reqwest::StatusCode),
     IOError(ioError),
     ChannelError(channelError),
@@ -39,7 +43,9 @@ pub enum YubicoError {
 impl fmt::Display for YubicoError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            #[cfg(feature = "online")]
             YubicoError::Network(ref err) => write!(f, "Connectivity error: {}", err),
+            #[cfg(feature = "online")]
             YubicoError::HTTPStatusCode(code) => write!(f, "Error found: {}", code),
             YubicoError::IOError(ref err) => write!(f, "IO error: {}", err),
             YubicoError::ChannelError(ref err) => write!(f, "Channel error: {}", err),
@@ -71,7 +77,9 @@ impl fmt::Display for YubicoError {
 impl error::Error for YubicoError {
     fn description(&self) -> &str {
         match *self {
+            #[cfg(feature = "online")]
             YubicoError::Network(ref err) => err.description(),
+            #[cfg(feature = "online")]
             YubicoError::HTTPStatusCode(_) => "200 not received",
             YubicoError::IOError(ref err) => err.description(),
             YubicoError::ChannelError(ref err) => err.description(),
@@ -101,7 +109,9 @@ impl error::Error for YubicoError {
 
     fn cause(&self) -> Option<&error::Error> {
         match *self {
+            #[cfg(feature = "online")]
             YubicoError::Network(ref err) => Some(err),
+            #[cfg(feature = "online")]
             YubicoError::HTTPStatusCode(_) => None,
             YubicoError::IOError(ref err) => Some(err),
             YubicoError::ChannelError(ref err) => Some(err),
@@ -130,12 +140,14 @@ impl error::Error for YubicoError {
     }
 }
 
+#[cfg(feature = "online")]
 impl From<reqwest::Error> for YubicoError {
     fn from(err: reqwest::Error) -> YubicoError {
         YubicoError::Network(err)
     }
 }
 
+#[cfg(feature = "online")]
 impl From<reqwest::StatusCode> for YubicoError {
     fn from(err: reqwest::StatusCode) -> YubicoError {
         YubicoError::HTTPStatusCode(err)
