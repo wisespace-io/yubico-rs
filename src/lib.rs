@@ -218,10 +218,11 @@ impl Yubico {
                             let cloned_key = config.key.clone();
                             pool.execute(move|| { 
                                 let handler = RequestHandler::new(cloned_key.to_vec());
-                                handler.process(tx, api_host.as_str(), request) 
+                                handler.process(tx, api_host.as_str(), request);
                             });
                         }
 
+                        let mut success = false;
                         let mut results: Vec<Result<String>> = Vec::new();
                         for _ in 0..number_of_hosts {
                             match rx.recv() {
@@ -229,9 +230,11 @@ impl Yubico {
                                     match result {
                                         Ok(_) => {
                                             results.truncate(0);
-                                            break
+                                            success = true;
                                         },
-                                        Err(_) => results.push(result),
+                                        Err(_) => {
+                                            results.push(result);
+                                        },
                                     }
                                 },
                                 Err(e) => {
@@ -241,7 +244,7 @@ impl Yubico {
                             }
                         }
 
-                        if results.len() == 0 {
+                        if success {
                             Ok("The OTP is valid.".into())
                         } else {
                             let result = results.pop().unwrap();
@@ -291,41 +294,45 @@ impl RequestHandler {
             Ok(result) => {
                 let response_map: BTreeMap<String, String> = self.build_response_map(result);
 
-                // Signature located in the response must match the signature we will build
-                let signature_response : &str = &*response_map.get("h").unwrap();
-                if !self.is_same_signature(signature_response, response_map.clone()) {
-                    sender.send(Response::Signal(Err(YubicoError::SignatureMismatch))).unwrap();
-                    return;
-                }
-
-                // Check if "otp" in the response is the same as the "otp" supplied in the request.
-                let otp_response : &str = &*response_map.get("otp").unwrap();
-                if !request.otp.contains(otp_response) {
-                    sender.send(Response::Signal(Err(YubicoError::OTPMismatch))).unwrap();
-                    return;
-                }
-
-                // Check if "nonce" in the response is the same as the "nonce" supplied in the request.
-                let nonce_response : &str = &*response_map.get("nonce").unwrap();
-                if !request.nonce.contains(nonce_response) {
-                    sender.send(Response::Signal(Err(YubicoError::NonceMismatch))).unwrap();
-                    return;
-                }
-
-                // Check the status of the operation
                 let status: &str = &*response_map.get("status").unwrap();
-                match status {
-                    "OK" => sender.send(Response::Signal(Ok("The OTP is valid.".to_owned()))).unwrap(),
-                    "BAD_OTP" => sender.send(Response::Signal(Err(YubicoError::BadOTP))).unwrap(),
-                    "REPLAYED_OTP" => sender.send(Response::Signal(Err(YubicoError::ReplayedOTP))).unwrap(),
-                    "BAD_SIGNATURE" => sender.send(Response::Signal(Err(YubicoError::BadSignature))).unwrap(),
-                    "MISSING_PARAMETER" => sender.send(Response::Signal(Err(YubicoError::MissingParameter))).unwrap(),
-                    "NO_SUCH_CLIENT" => sender.send(Response::Signal(Err(YubicoError::NoSuchClient))).unwrap(),
-                    "OPERATION_NOT_ALLOWED" => sender.send(Response::Signal(Err(YubicoError::OperationNotAllowed))).unwrap(),
-                    "BACKEND_ERROR" => sender.send(Response::Signal(Err(YubicoError::BackendError))).unwrap(),
-                    "NOT_ENOUGH_ANSWERS" => sender.send(Response::Signal(Err(YubicoError::NotEnoughAnswers))).unwrap(),
-                    "REPLAYED_REQUEST" => sender.send(Response::Signal(Err(YubicoError::ReplayedRequest))).unwrap(),
-                    _ => sender.send(Response::Signal(Err(YubicoError::UnknownStatus))).unwrap()
+
+                if let "OK" = status {
+                    // Signature located in the response must match the signature we will build
+                    let signature_response : &str = &*response_map.get("h").unwrap();
+                    if !self.is_same_signature(signature_response, response_map.clone()) {
+                        sender.send(Response::Signal(Err(YubicoError::SignatureMismatch))).unwrap();
+                        return;
+                    }
+
+                    // Check if "otp" in the response is the same as the "otp" supplied in the request.
+                    let otp_response : &str = &*response_map.get("otp").unwrap();
+                    if !request.otp.contains(otp_response) {
+                        sender.send(Response::Signal(Err(YubicoError::OTPMismatch))).unwrap();
+                        return;
+                    }
+       
+                    // Check if "nonce" in the response is the same as the "nonce" supplied in the request.
+                    let nonce_response : &str = &*response_map.get("nonce").unwrap();
+                    if !request.nonce.contains(nonce_response) {
+                        sender.send(Response::Signal(Err(YubicoError::NonceMismatch))).unwrap();
+                        return;
+                    }
+
+                    sender.send(Response::Signal(Ok("The OTP is valid.".to_owned()))).unwrap();
+                } else {
+                     // Check the status of the operation
+                    match status {
+                        "BAD_OTP" => sender.send(Response::Signal(Err(YubicoError::BadOTP))).unwrap(),
+                        "REPLAYED_OTP" => sender.send(Response::Signal(Err(YubicoError::ReplayedOTP))).unwrap(),
+                        "BAD_SIGNATURE" => sender.send(Response::Signal(Err(YubicoError::BadSignature))).unwrap(),
+                        "MISSING_PARAMETER" => sender.send(Response::Signal(Err(YubicoError::MissingParameter))).unwrap(),
+                        "NO_SUCH_CLIENT" => sender.send(Response::Signal(Err(YubicoError::NoSuchClient))).unwrap(),
+                        "OPERATION_NOT_ALLOWED" => sender.send(Response::Signal(Err(YubicoError::OperationNotAllowed))).unwrap(),
+                        "BACKEND_ERROR" => sender.send(Response::Signal(Err(YubicoError::BackendError))).unwrap(),
+                        "NOT_ENOUGH_ANSWERS" => sender.send(Response::Signal(Err(YubicoError::NotEnoughAnswers))).unwrap(),
+                        "REPLAYED_REQUEST" => sender.send(Response::Signal(Err(YubicoError::ReplayedRequest))).unwrap(),
+                        _ => sender.send(Response::Signal(Err(YubicoError::UnknownStatus))).unwrap()
+                    }
                 }
             },
             Err(e) => {
