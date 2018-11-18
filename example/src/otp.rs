@@ -7,16 +7,12 @@ fn main() {
    let yubi = Yubico::new();
 
    let config = Config::default()
-       .set_client_id("38734")
-       .set_key("pJM4TyTWKJ1XA/+2JoiF+BXl3Oc=");
+       .set_client_id("CLIENT_ID")
+       .set_key("API_KEY");
 
-   let result = yubi.verify("z", config);
+   let result = yubi.verify("OTP", config);
    match result {
       Ok(answer) => println!("{}", answer),
       Err(e) => println!("Error: {}", e),
-   }
-
-   loop {
-       
    }
 }

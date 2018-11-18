@@ -22,6 +22,19 @@ Add this to your Cargo.toml
 yubico = "0.4"
 ```
 
+The following are a list of Cargo features that can be enabled or disabled:
+
+- online (enabled by default): Provides TLS support via Reqwest to connect over HTTPS in order to validate OTP against the yubico/custom servers. On Linux, it will use OpenSSL 1.1. You can disable using the example below:
+
+  ```toml
+  [dependencies.yubico]
+  version = "0.4"
+  # don't include the default features (online)
+  default-features = false
+  # cherry-pick individual features
+  features = []
+  ```
+
 [Request your api key](https://upgrade.yubico.com/getapikey/).
 
 ### OTP with Default Servers
