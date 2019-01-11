@@ -13,6 +13,7 @@ extern crate rand;
 extern crate sha1;
 extern crate threadpool;
 #[macro_use] extern crate bitflags;
+extern crate subtle;
 
 mod manager;
 pub mod otpmode;
@@ -209,7 +210,7 @@ impl Yubico {
                 match sec::build_signature(config.key.clone(), query.clone()) {
                     Ok(signature) => {
                         // Base 64 encode the resulting value according to RFC 4648
-                        let encoded_signature = encode(signature.code());
+                        let encoded_signature = encode(&signature.code());
 
                         // Append the value under key h to the message.
                         let signature_param = format!("&h={}", encoded_signature);
@@ -368,7 +369,9 @@ impl RequestHandler {
         if let Ok(signature) = sec::build_signature(self.key.clone(), query.clone()) {
             let decoded_signature = &decode(signature_response).unwrap()[..];
 
-            crypto::util::fixed_time_eq(signature.code(), decoded_signature)
+            use subtle::ConstantTimeEq;
+
+            signature.code().ct_eq(decoded_signature).into()
         } else {
             return false;
         }
