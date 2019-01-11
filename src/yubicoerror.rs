@@ -4,6 +4,7 @@ extern crate reqwest;
 
 use std::error;
 use std::fmt;
+#[cfg(feature = "usb")]
 use libusb::Error as usbError;
 use std::io::Error as ioError;
 use std::sync::mpsc::RecvError as channelError;
@@ -18,6 +19,7 @@ pub enum YubicoError {
     IOError(ioError),
     ChannelError(channelError),
     DecodeError(base64Error),
+    #[cfg(feature = "usb")]
     UsbError(usbError),
     CommandNotSupported,
     DeviceNotFound,
@@ -51,6 +53,7 @@ impl fmt::Display for YubicoError {
             YubicoError::IOError(ref err) => write!(f, "IO error: {}", err),
             YubicoError::ChannelError(ref err) => write!(f, "Channel error: {}", err),
             YubicoError::DecodeError(ref err) => write!(f, "Decode  error: {}", err), 
+            #[cfg(feature = "usb")]
             YubicoError::UsbError(ref err) => write!(f, "USB  error: {}", err),                       
             YubicoError::BadOTP => write!(f, "The OTP has invalid format."),
             YubicoError::ReplayedOTP => write!(f, "The OTP has already been seen by the service."),
@@ -86,6 +89,7 @@ impl error::Error for YubicoError {
             YubicoError::IOError(ref err) => err.description(),
             YubicoError::ChannelError(ref err) => err.description(),
             YubicoError::DecodeError(ref err) => err.description(),
+            #[cfg(feature = "usb")]
             YubicoError::UsbError(ref err) => err.description(),            
             YubicoError::BadOTP => "The OTP has invalid format.",
             YubicoError::ReplayedOTP => "The OTP has already been seen by the service.",
@@ -119,6 +123,7 @@ impl error::Error for YubicoError {
             YubicoError::IOError(ref err) => Some(err),
             YubicoError::ChannelError(ref err) => Some(err),
             YubicoError::DecodeError(ref err) => Some(err),    
+            #[cfg(feature = "usb")]
             YubicoError::UsbError(ref err) => Some(err),                    
             _ => None
         }
@@ -157,6 +162,7 @@ impl From<base64Error> for YubicoError {
     }
 }
 
+#[cfg(feature = "usb")]
 impl From<usbError> for YubicoError {
     fn from(err: usbError) -> YubicoError {
         YubicoError::UsbError(err)
