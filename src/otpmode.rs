@@ -1,6 +1,9 @@
 use std;
 use rand::Rng;
-use crypto::aessafe;
+use aes;
+use aes::block_cipher_trait::BlockCipher;
+use aes::block_cipher_trait::generic_array::GenericArray;
+use aes::block_cipher_trait::generic_array::typenum::U16;
 use sec::{ CRC_RESIDUAL_OK, crc16 };
 use yubicoerror::YubicoError;
 
@@ -51,7 +54,7 @@ impl Aes128Key {
 
 #[derive(Debug)]
 pub struct Aes128Block {
-    pub block: [u8; 16],
+    pub block: GenericArray<u8, U16>,
 }
 
 impl Drop for Aes128Block {
@@ -76,13 +79,14 @@ impl Aes128Block {
     /// larger than the last value seen.
     pub fn check(&self, key: &Aes128Key, challenge: &[u8]) -> Result<Otp, YubicoError> {
 
-        let aes_dec = aessafe::AesSafe128Decryptor::new(&key.0);
+        let aes_dec = aes::Aes128::new(GenericArray::from_slice(&key.0));
         let mut tmp = Otp::default();
         {
-            use crypto::symmetriccipher::BlockDecryptor;
             let mut tmp =
                 unsafe { std::slice::from_raw_parts_mut(&mut tmp as *mut Otp as *mut u8, 16) };
-            aes_dec.decrypt_block(&self.block, &mut tmp);
+            let mut block_copy = &mut self.block.clone();
+            aes_dec.decrypt_block(&mut block_copy);
+            tmp.copy_from_slice(block_copy);
 
             if crc16(&tmp) != CRC_RESIDUAL_OK {
                 return Err(YubicoError::WrongCRC);
