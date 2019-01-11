@@ -38,6 +38,7 @@ pub enum YubicoError {
     OTPMismatch,
     NonceMismatch,
     SignatureMismatch,
+    InvalidKeyLength,
 }
 
 impl fmt::Display for YubicoError {
@@ -69,7 +70,8 @@ impl fmt::Display for YubicoError {
             YubicoError::CommandNotSupported => write!(f, "Command Not Supported"),
             YubicoError::WrongCRC => write!(f, "Wrong CRC"),            
             YubicoError::CanNotWriteToDevice => write!(f, "Can not write to Device"),
-            YubicoError::ConfigNotWritten => write!(f, "Configuration has failed")
+            YubicoError::ConfigNotWritten => write!(f, "Configuration has failed"),
+            YubicoError::InvalidKeyLength => write!(f, "Invalid key length encountered while building signature"),
         }
     }
 }
@@ -103,7 +105,8 @@ impl error::Error for YubicoError {
             YubicoError::CommandNotSupported => "Command Not Supported",
             YubicoError::WrongCRC => "Wrong CRC",            
             YubicoError::CanNotWriteToDevice => "Can not write to Device", 
-            YubicoError::ConfigNotWritten => "Can configure the Device"                       
+            YubicoError::ConfigNotWritten => "Can configure the Device",
+            YubicoError::InvalidKeyLength => "Invalid key length",
         }
     }
 
@@ -117,25 +120,7 @@ impl error::Error for YubicoError {
             YubicoError::ChannelError(ref err) => Some(err),
             YubicoError::DecodeError(ref err) => Some(err),    
             YubicoError::UsbError(ref err) => Some(err),                    
-            YubicoError::BadOTP => None,
-            YubicoError::ReplayedOTP => None,
-            YubicoError::BadSignature => None,
-            YubicoError::MissingParameter => None,
-            YubicoError::NoSuchClient => None,
-            YubicoError::OperationNotAllowed => None,
-            YubicoError::BackendError => None,
-            YubicoError::NotEnoughAnswers => None,
-            YubicoError::ReplayedRequest => None,
-            YubicoError::UnknownStatus => None,
-            YubicoError::OTPMismatch => None,
-            YubicoError::NonceMismatch => None,
-            YubicoError::SignatureMismatch => None,
-            YubicoError::DeviceNotFound => None,
-            YubicoError::OpenDeviceError => None,
-            YubicoError::WrongCRC => None,            
-            YubicoError::CommandNotSupported => None,
-            YubicoError::CanNotWriteToDevice => None,
-            YubicoError::ConfigNotWritten => None                       
+            _ => None
         }
     }
 }

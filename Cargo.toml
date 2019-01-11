@@ -23,9 +23,14 @@ reqwest = {version = "0.8", optional = true}
 rand = "0.4"
 base64 = "0.9"
 threadpool = "1.7"
-rust-crypto = "^0.2"
 libusb = "0.2"
 bitflags = "1.0.3"
+
+aes-soft = "^0.3"
+block-modes = "^0.3"
+crypto-mac = "0.7"
+hmac = "^0.7"
+sha-1 = "^0.8"
 
 [features]
 default = ["online"]

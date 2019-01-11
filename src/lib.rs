@@ -3,10 +3,14 @@ extern crate reqwest;
 
 #[macro_use] extern crate url;
 
+extern crate aes_soft as aes;
 extern crate base64;
-extern crate crypto;
-extern crate rand;
+extern crate block_modes;
+extern crate crypto_mac;
+extern crate hmac;
 extern crate libusb;
+extern crate rand;
+extern crate sha1;
 extern crate threadpool;
 #[macro_use] extern crate bitflags;
 
@@ -17,6 +21,8 @@ pub mod sec;
 pub mod config;
 pub mod configure;
 pub mod yubicoerror;
+
+use aes::block_cipher_trait::generic_array::GenericArray;
 
 use config::Command;
 use configure::{ DeviceModeConfig };
@@ -154,7 +160,7 @@ impl Yubico {
     }
     
     pub fn challenge_response_otp(&mut self, chall: &[u8], conf: Config) -> Result<Aes128Block> {
-        let mut block = Aes128Block { block: [0; 16] };
+        let mut block = Aes128Block { block: GenericArray::clone_from_slice(&[0; 16]) };
 
         match manager::open_device(&mut self.context, conf.vendor_id, conf.product_id) {
             Some(mut handle) => {
