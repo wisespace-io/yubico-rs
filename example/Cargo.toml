@@ -29,5 +29,5 @@ path = "src/challenge_response_otp.rs"
 
 [dependencies]
 hex = "0.3.2"
-rand = "0.5.3"
+rand = "0.6.0"
 yubico = { path = "../" }
