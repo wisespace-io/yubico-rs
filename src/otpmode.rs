@@ -82,7 +82,7 @@ impl Aes128Block {
         let aes_dec = aes::Aes128::new(GenericArray::from_slice(&key.0));
         let mut tmp = Otp::default();
         {
-            let mut tmp =
+            let tmp =
                 unsafe { std::slice::from_raw_parts_mut(&mut tmp as *mut Otp as *mut u8, 16) };
             let mut block_copy = &mut self.block.clone();
             aes_dec.decrypt_block(&mut block_copy);
