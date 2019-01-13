@@ -19,9 +19,9 @@ path = "src/lib.rs"
 
 [dependencies]
 url = "1.7"
-reqwest = {version = "0.8", optional = true}
-rand = "0.4"
-base64 = "0.9"
+reqwest = {version = "0.9", optional = true}
+rand = "0.6"
+base64 = "0.10"
 threadpool = "1.7"
 bitflags = "1.0.3"
 libusb = {version = "0.2", optional = true}

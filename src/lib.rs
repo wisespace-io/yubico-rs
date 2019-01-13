@@ -42,11 +42,13 @@ use yubicoerror::YubicoError;
 use libusb::{Context};
 
 #[cfg(feature = "online")]
-use reqwest::header::{Headers, UserAgent};
+use reqwest::header::USER_AGENT;
 
 use std::io::prelude::*;
 use base64::{encode, decode};
-use rand::{OsRng, Rng};
+use rand::Rng;
+use rand::rngs::OsRng;
+use rand::distributions::Alphanumeric;
 use threadpool::ThreadPool;
 use std::collections::BTreeMap;
 use std::sync::mpsc::{ channel, Sender };
@@ -294,7 +296,7 @@ impl Yubico {
 
     fn generate_nonce(&self) -> String {
         OsRng::new().unwrap()
-                    .gen_ascii_chars()
+                    .sample_iter(&Alphanumeric)
                     .take(40)
                     .collect()
     }    
@@ -401,14 +403,10 @@ impl RequestHandler {
     }
 
     pub fn get(&self, url: String) -> Result<String> {
-        let mut custon_headers = Headers::new();
-
-        custon_headers.set(UserAgent::new("github.com/wisespace-io/yubico-rs"));
-
         let client = reqwest::Client::new();
         let mut response = client
             .get(url.as_str())
-            .headers(custon_headers)
+            .header(USER_AGENT, "github.com/wisespace-io/yubico-rs")
             .send()?;
 
         let mut data = String::new();
