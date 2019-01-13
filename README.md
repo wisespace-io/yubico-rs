@@ -1,11 +1,17 @@
-[![Build Status](https://travis-ci.org/wisespace-io/yubico-rs.png?branch=master)](https://travis-ci.org/wisespace-io/yubico-rs)
-[![Crates.io](https://img.shields.io/crates/v/yubico.svg)](https://crates.io/crates/yubico)
-[![MIT licensed](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE-MIT)
-[![Apache-2.0 licensed](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE-APACHE)
+# Yubico &emsp; [![Build Status]][travis] [![Latest Version]][crates.io] [![MIT licensed]][MIT] [![Apache-2.0 licensed]][APACHE]
 
-# Yubico
+[Build Status]: https://travis-ci.org/wisespace-io/yubico-rs.png?branch=master
+[travis]: https://travis-ci.org/wisespace-io/yubico-rs
+[Latest Version]: https://img.shields.io/crates/v/yubico.svg
+[crates.io]: https://crates.io/crates/yubico
+[MIT licensed]: https://img.shields.io/badge/License-MIT-blue.svg
+[MIT]: ./LICENSE-MIT
+[Apache-2.0 licensed]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
+[APACHE]: ./LICENSE-APACHE
 
-Enables integration with the Yubico validation platform, so you can use Yubikey's one-time-password in your Rust application, allowing a user to authenticate via Yubikey.
+**Enables integration with the Yubico validation platform, so you can use Yubikey's one-time-password in your Rust application, allowing a user to authenticate via Yubikey.**
+
+---
 
 ## Current features
 
@@ -19,19 +25,19 @@ Add this to your Cargo.toml
 
 ```toml
 [dependencies]
-yubico = "0.4"
+yubico = "0.5"
 ```
 
 The following are a list of Cargo features that can be enabled or disabled:
 
-- online (enabled by default): Provides TLS support via Reqwest to connect over HTTPS in order to validate OTP against the yubico/custom servers. On Linux, it will use OpenSSL 1.1. 
+- online (enabled by default): Provides TLS support via Reqwest to connect over HTTPS in order to validate OTP against the yubico/custom servers. On Linux, it will use OpenSSL 1.1.
 - usb (enabled by default): Provides USB support via libusb. It can safely be disabled when using the library to do only OTP with servers.
 
 You can enable or disable them using the example below:
 
   ```toml
   [dependencies.yubico]
-  version = "0.4"
+  version = "0.5"
   # don't include the default features (online)
   default-features = false
   # cherry-pick individual features
@@ -161,8 +167,8 @@ fn main() {
        let v: &[u8] = hmac_result.deref();
        let hex_string = hex::encode(v);
 
-       println!("{}", hex_string);       
-     
+       println!("{}", hex_string);
+
    } else {
        println!("Yubikey not found");
    }
