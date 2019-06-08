@@ -13,9 +13,9 @@ pub const CRC_RESIDUAL_OK: u16 = 0xf0b8;
 type HmacSha1 = Hmac<Sha1>;
 
 //  1. Apply the HMAC-SHA-1 algorithm on the line as an octet string using the API key as key
-pub fn build_signature(key: Vec<u8>, query: String) -> Result<MacResult<<sha1::Sha1 as Digest>::OutputSize>, YubicoError>
+pub fn build_signature(key: &[u8], query: String) -> Result<MacResult<<sha1::Sha1 as Digest>::OutputSize>, YubicoError>
 {
-    let decoded_key = decode(&key)?;
+    let decoded_key = decode(key)?;
 
     let mut hmac = match HmacSha1::new_varkey(&decoded_key) {
         Ok(h) => h,
