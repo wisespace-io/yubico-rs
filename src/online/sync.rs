@@ -5,11 +5,10 @@ use reqwest::header::USER_AGENT;
 use threadpool::ThreadPool;
 
 use config::Config;
-use online::{build_request, verify_response};
-use Request;
+use online::build_request;
+use online::Request;
 use Result;
 use yubicoerror::YubicoError;
-
 
 pub fn verify<S>(otp: S, config: Config) -> Result<String>
     where S: Into<String>
@@ -23,10 +22,8 @@ pub fn verify<S>(otp: S, config: Config) -> Result<String>
     for api_host in config.api_hosts {
         let tx = tx.clone();
         let request = request.clone();
-        let cloned_key = config.key.clone();
-        pool.execute(move|| {
-            let handler = RequestHandler::new(cloned_key.to_vec());
-            handler.process(tx, api_host.as_str(), request);
+        pool.execute(move || {
+            process(tx, api_host.as_str(), &request);
         });
     }
 
@@ -64,41 +61,28 @@ enum Response {
     Signal(Result<String>),
 }
 
-pub struct RequestHandler {
-    key: Vec<u8>,
+fn process(sender: Sender<Response>, api_host: &str, request: &Request) {
+    match get(request.build_url(api_host)) {
+        Ok(raw_response) => {
+            let result = request.response_verifier.verify_response(raw_response)
+                .map(|()| "The OTP is valid.".to_owned());
+            sender.send(Response::Signal(result)).unwrap();
+        },
+        Err(e) => {
+            sender.send(Response::Signal(Err(e))).unwrap();
+        }
+    }
 }
 
-impl RequestHandler {
-    pub fn new(key: Vec<u8>) -> Self {
-        RequestHandler {
-            key: key
-        }
-    }
+pub fn get(url: String) -> Result<String> {
+    let client = reqwest::Client::new();
+    let mut response = client
+        .get(url.as_str())
+        .header(USER_AGENT, "github.com/wisespace-io/yubico-rs")
+        .send()?;
 
-    fn process(&self, sender: Sender<Response>, api_host: &str, request: Request) {
-        let url = format!("{}?{}", api_host, request.query);
-        match self.get(url) {
-            Ok(raw_response) => {
-                let result = verify_response(request, raw_response, &self.key)
-                    .map(|()| "The OTP is valid.".to_owned());
-                sender.send(Response::Signal(result)).unwrap();
-            },
-            Err(e) => {
-                sender.send(Response::Signal(Err(e))).unwrap();
-            }
-        }
-    }
+    let mut data = String::new();
+    response.read_to_string(&mut data)?;
 
-    pub fn get(&self, url: String) -> Result<String> {
-        let client = reqwest::Client::new();
-        let mut response = client
-            .get(url.as_str())
-            .header(USER_AGENT, "github.com/wisespace-io/yubico-rs")
-            .send()?;
-
-        let mut data = String::new();
-        response.read_to_string(&mut data)?;
-
-        Ok(data)
-    }
+    Ok(data)
 }

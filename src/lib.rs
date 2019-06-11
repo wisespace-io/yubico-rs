@@ -51,14 +51,6 @@ const VENDOR_ID: u16 = 0x1050;
 type Result<T> = ::std::result::Result<T, YubicoError>;
 
 #[derive(Clone)]
-pub struct Request {
-    otp: String,
-    nonce: String,
-    signature: String,
-    query: String,
-}
-
-#[derive(Clone)]
 pub struct Device {
     pub product_id: u16,
     pub vendor_id: u16

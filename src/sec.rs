@@ -13,7 +13,7 @@ pub const CRC_RESIDUAL_OK: u16 = 0xf0b8;
 type HmacSha1 = Hmac<Sha1>;
 
 //  1. Apply the HMAC-SHA-1 algorithm on the line as an octet string using the API key as key
-pub fn build_signature(key: &[u8], query: String) -> Result<MacResult<<sha1::Sha1 as Digest>::OutputSize>, YubicoError>
+pub fn build_signature(key: &[u8], input: &[u8]) -> Result<MacResult<<sha1::Sha1 as Digest>::OutputSize>, YubicoError>
 {
     let decoded_key = decode(key)?;
 
@@ -21,7 +21,7 @@ pub fn build_signature(key: &[u8], query: String) -> Result<MacResult<<sha1::Sha
         Ok(h) => h,
         Err(_) => return Err(YubicoError::InvalidKeyLength)
     };
-    hmac.input(query.as_bytes());
+    hmac.input(input);
     Ok(hmac.result())
 }
 
