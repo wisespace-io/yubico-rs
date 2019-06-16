@@ -1,4 +1,6 @@
 mod sync;
+#[cfg(feature = "online")]
+mod async;
 
 use std::collections::BTreeMap;
 
@@ -14,6 +16,7 @@ use yubicoerror::YubicoError;
 use crate::Result;
 
 pub use online::sync::verify;
+pub use online::async::verify_async;
 use config::Config;
 
 define_encode_set! {

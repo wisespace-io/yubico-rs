@@ -1,4 +1,4 @@
-#[cfg(feature = "online")]
+#[cfg(any(feature = "online", feature = "online-tokio"))]
 extern crate reqwest;
 #[cfg(feature = "usb")]
 extern crate libusb;
@@ -15,6 +15,7 @@ extern crate sha1;
 extern crate threadpool;
 #[macro_use] extern crate bitflags;
 extern crate subtle;
+extern crate futures;
 
 #[cfg(feature = "usb")]
 mod manager;
@@ -25,7 +26,7 @@ pub mod config;
 #[cfg(feature = "usb")]
 pub mod configure;
 pub mod yubicoerror;
-#[cfg(feature = "online")]
+#[cfg(any(feature = "online", feature = "online-tokio"))]
 mod online;
 
 use aes::block_cipher_trait::generic_array::GenericArray;
@@ -44,6 +45,7 @@ use yubicoerror::YubicoError;
 use libusb::{Context};
 
 pub use online::verify;
+pub use online::verify_async;
 
 const VENDOR_ID: u16 = 0x1050;
 

@@ -31,6 +31,7 @@ yubico = "0.5"
 The following are a list of Cargo features that can be enabled or disabled:
 
 - online (enabled by default): Provides TLS support via Reqwest to connect over HTTPS in order to validate OTP against the yubico/custom servers. On Linux, it will use OpenSSL 1.1.
+- online-tokio (enabled by default): Provides integration to Tokio using futures.
 - usb (enabled by default): Provides USB support via libusb. It can safely be disabled when using the library to do only OTP with servers.
 
 You can enable or disable them using the example below:
