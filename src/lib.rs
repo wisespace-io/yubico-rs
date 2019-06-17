@@ -44,7 +44,9 @@ use yubicoerror::YubicoError;
 #[cfg(feature = "usb")]
 use libusb::{Context};
 
+#[cfg(feature = "online")]
 pub use online::verify;
+#[cfg(feature = "online-tokio")]
 pub use online::verify_async;
 
 const VENDOR_ID: u16 = 0x1050;
