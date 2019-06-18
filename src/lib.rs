@@ -3,6 +3,7 @@ extern crate reqwest;
 #[cfg(feature = "usb")]
 extern crate libusb;
 
+#[macro_use] extern crate structure;
 #[macro_use] extern crate url;
 
 extern crate aes_soft as aes;
@@ -105,6 +106,37 @@ impl Yubico {
                 manager::wait(&mut handle, |f| !f.contains(Flags::SLOT_WRITE_FLAG), &mut buf)?;
 
                 Ok(())
+            },
+            None => Err(YubicoError::OpenDeviceError)
+        }
+    }
+
+    #[cfg(feature = "usb")]
+    pub fn read_serial_number(&mut self, conf: Config) -> Result<u32> {
+
+        match manager::open_device(&mut self.context, conf.vendor_id, conf.product_id) {
+            Some(mut handle) => {
+                let mut challenge = [0; 64];
+                let mut command = Command::DeviceSerial;
+
+                let d = Frame::new(challenge, command); // FixMe: do not need a challange
+                let mut buf = [0; 8];
+                manager::wait(&mut handle, |f| !f.contains(manager::Flags::SLOT_WRITE_FLAG), &mut buf)?;
+ 
+                manager::write_frame(&mut handle, &d)?;
+
+                // Read the response.
+                let mut response = [0; 36];
+                manager::read_response(&mut handle, &mut response)?;
+
+                // Check response.
+                if crc16(&response[..6]) != CRC_RESIDUAL_OK {
+                    return Err(YubicoError::WrongCRC);
+                }
+
+                let serial = structure!("2I").unpack(response[..8].to_vec())?;
+
+                Ok(serial.0)
             },
             None => Err(YubicoError::OpenDeviceError)
         }

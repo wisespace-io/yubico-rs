@@ -1,6 +1,6 @@
 [package]
 name = "yubico"
-version = "0.5.1"
+version = "0.6.0"
 authors = ["Flavio Oliveira <flavio@wisespace.io>", "Pierre-Étienne Meunier <pe@coturnix.fr>"]
 
 description = "Yubikey client API library"
@@ -26,6 +26,7 @@ base64 = "0.10"
 threadpool = "1.7"
 bitflags = "1.0.3"
 libusb = {version = "0.2", optional = true}
+structure = "0.1"
 
 aes-soft = "^0.3"
 block-modes = "^0.3"

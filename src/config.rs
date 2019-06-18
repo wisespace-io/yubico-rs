@@ -24,6 +24,7 @@ pub enum Command {
     Update1 = 0x04,
     Update2 = 0x05,
     Swap = 0x06,
+    DeviceSerial = 0x10,
     DeviceConfig = 0x11,       
     ChallengeOtp1 = 0x20,
     ChallengeOtp2 = 0x28,

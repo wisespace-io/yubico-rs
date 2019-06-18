@@ -25,7 +25,7 @@ Add this to your Cargo.toml
 
 ```toml
 [dependencies]
-yubico = "0.5"
+yubico = "0.6"
 ```
 
 The following are a list of Cargo features that can be enabled or disabled:
@@ -52,13 +52,15 @@ You can enable or disable them using the example below:
 ```rust
 extern crate yubico;
 
-use yubico::Yubico;
 use yubico::config::*;
+use yubico::verify;
 
 fn main() {
-   let yubi = Yubico::new("CLIENT_ID", "API_KEY");
-   let result = yubi.verify("OTP", Config::default());
-   match result {
+   let config = Config::default()
+       .set_client_id("CLIENT_ID")
+       .set_key("API_KEY");
+
+   match verify("OTP", config) {
       Ok(answer) => println!("{}", answer),
       Err(e) => println!("Error: {}", e),
    }
@@ -70,15 +72,16 @@ fn main() {
 ```rust
 extern crate yubico;
 
-use yubico::Yubico;
+use yubico::verify;
 use yubico::config::*;
 
 fn main() {
-   let yubi = Yubico::new("CLIENT_ID", "API_KEY");
+   let config = Config::default()
+       .set_client_id("CLIENT_ID")
+       .set_key("API_KEY")
+       .set_api_hosts(vec!["https://api.example.com/verify".into()]);
 
-   let config = Config::default().set_api_hosts(vec!["https://api.example.com/verify".into()]);
-   let result = yubi.verify("OTP", config);
-   match result {
+   match verify("OTP", config) {
       Ok(answer) => println!("{}", answer),
       Err(e) => println!("Error: {}", e),
    }
