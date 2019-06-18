@@ -19,6 +19,8 @@ pub enum YubicoError {
     IOError(ioError),
     ChannelError(channelError),
     DecodeError(base64Error),
+    #[cfg(feature = "online-tokio")]
+    MultipleErrors(Vec<YubicoError>),
     #[cfg(feature = "usb")]
     UsbError(usbError),
     CommandNotSupported,
@@ -42,6 +44,7 @@ pub enum YubicoError {
     SignatureMismatch,
     InvalidKeyLength,
 }
+            #[cfg(feature = "online-tokio")]
 
 impl fmt::Display for YubicoError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -52,7 +55,17 @@ impl fmt::Display for YubicoError {
             YubicoError::HTTPStatusCode(code) => write!(f, "Error found: {}", code),
             YubicoError::IOError(ref err) => write!(f, "IO error: {}", err),
             YubicoError::ChannelError(ref err) => write!(f, "Channel error: {}", err),
-            YubicoError::DecodeError(ref err) => write!(f, "Decode  error: {}", err), 
+            YubicoError::DecodeError(ref err) => write!(f, "Decode  error: {}", err),
+            #[cfg(feature = "online-tokio")]
+            YubicoError::MultipleErrors(ref errs) => {
+                write!(f, "Multiple errors. ")?;
+
+                for err in errs {
+                    write!(f, "{} ", err)?;
+                }
+
+                Ok(())
+            }
             #[cfg(feature = "usb")]
             YubicoError::UsbError(ref err) => write!(f, "USB  error: {}", err),                       
             YubicoError::BadOTP => write!(f, "The OTP has invalid format."),
@@ -89,6 +102,10 @@ impl error::Error for YubicoError {
             YubicoError::IOError(ref err) => err.description(),
             YubicoError::ChannelError(ref err) => err.description(),
             YubicoError::DecodeError(ref err) => err.description(),
+            #[cfg(feature = "online-tokio")]
+            YubicoError::MultipleErrors(ref _errs) => {
+                "Multiple errors. "
+            }
             #[cfg(feature = "usb")]
             YubicoError::UsbError(ref err) => err.description(),            
             YubicoError::BadOTP => "The OTP has invalid format.",
@@ -102,9 +119,9 @@ impl error::Error for YubicoError {
             YubicoError::ReplayedRequest => "Server has seen the OTP/Nonce combination before",
             YubicoError::UnknownStatus => "Unknown status sent by the OTP validation server",
             YubicoError::OTPMismatch => "OTP in the response is the same as the supplied in the request. It may be an attack attempt",
-            YubicoError::NonceMismatch => "NOnce in the response is the same as the supplied in the request. It may be an attack attempt",
+            YubicoError::NonceMismatch => "Nonce in the response is the same as the supplied in the request. It may be an attack attempt",
             YubicoError::SignatureMismatch => "Signature in the response is the same as the supplied in the request. It may be an attack attempt",
-            YubicoError::DeviceNotFound => "Youbikey device not found",
+            YubicoError::DeviceNotFound => "Yubikey device not found",
             YubicoError::OpenDeviceError => "Can not open device",
             YubicoError::CommandNotSupported => "Command Not Supported",
             YubicoError::WrongCRC => "Wrong CRC",            
@@ -122,7 +139,14 @@ impl error::Error for YubicoError {
             YubicoError::HTTPStatusCode(_) => None,
             YubicoError::IOError(ref err) => Some(err),
             YubicoError::ChannelError(ref err) => Some(err),
-            YubicoError::DecodeError(ref err) => Some(err),    
+            YubicoError::DecodeError(ref err) => Some(err),
+            #[cfg(feature = "online-tokio")]
+            YubicoError::MultipleErrors(ref errs) => {
+                match errs.first() {
+                    Some(err) => Some(err),
+                    None => None
+                }
+            },
             #[cfg(feature = "usb")]
             YubicoError::UsbError(ref err) => Some(err),                    
             _ => None

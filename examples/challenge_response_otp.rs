@@ -22,7 +22,7 @@ fn main() {
        let otp_result = yubi.challenge_response_otp(challenge, config).unwrap();
 
        // Just for debug, lets check the hex
-       let v: &[u8; 16] = &otp_result.block;
+       let v: &[u8] = &otp_result.block;
        let hex_string = hex::encode(v);
 
        println!("{}", hex_string);
