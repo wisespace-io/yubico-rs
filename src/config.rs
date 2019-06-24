@@ -43,6 +43,7 @@ pub struct Config {
     pub mode: Mode,
     pub command: Command,
     pub api_hosts: Vec<String>,
+    pub user_agent: String,
 }
 
 #[allow(dead_code)]
@@ -58,6 +59,7 @@ impl Config {
             mode: Mode::Sha1,
             command: Command::ChallengeHmac1,
             api_hosts: build_hosts(),
+            user_agent: "github.com/wisespace-io/yubico-rs".to_string(),
         }
     }
 
@@ -108,7 +110,12 @@ impl Config {
     pub fn set_command(mut self, command: Command) -> Self {
         self.command = command;
         self
-    }    
+    }
+
+    pub fn set_user_agent(mut self, user_agent: String) -> Self {
+        self.user_agent = user_agent;
+        self
+    }
 }
 
 fn build_hosts() -> Vec<String> {
