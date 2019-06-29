@@ -97,7 +97,7 @@ impl Yubico {
         let mut buf = [0; 8];
 
         match manager::open_device(&mut self.context, conf.vendor_id, conf.product_id) {
-            Some(mut handle) => {
+            Ok(mut handle) => {
                 manager::wait(&mut handle, |f| !f.contains(Flags::SLOT_WRITE_FLAG), &mut buf)?;
 
                 // TODO: Should check version number.
@@ -107,7 +107,7 @@ impl Yubico {
 
                 Ok(())
             },
-            None => Err(YubicoError::OpenDeviceError)
+            Err(error) => Err(error)
         }
     }
 
@@ -115,7 +115,7 @@ impl Yubico {
     pub fn read_serial_number(&mut self, conf: Config) -> Result<u32> {
 
         match manager::open_device(&mut self.context, conf.vendor_id, conf.product_id) {
-            Some(mut handle) => {
+            Ok(mut handle) => {
                 let mut challenge = [0; 64];
                 let mut command = Command::DeviceSerial;
 
@@ -138,7 +138,7 @@ impl Yubico {
 
                 Ok(serial.0)
             },
-            None => Err(YubicoError::OpenDeviceError)
+            Err(error) => Err(error)
         }
     }
 
@@ -147,7 +147,7 @@ impl Yubico {
         let mut hmac = Hmac([0; 20]);
 
         match manager::open_device(&mut self.context, conf.vendor_id, conf.product_id) {
-            Some(mut handle) => {
+            Ok(mut handle) => {
                 let mut challenge = [0; 64];
                 
                 if conf.variable && chall.last() == Some(&0) {
@@ -179,7 +179,7 @@ impl Yubico {
 
                 Ok(hmac)
             },
-            None => Err(YubicoError::OpenDeviceError)
+            Err(error) => Err(error)
         }
     }
     
@@ -188,7 +188,7 @@ impl Yubico {
         let mut block = Aes128Block { block: GenericArray::clone_from_slice(&[0; 16]) };
 
         match manager::open_device(&mut self.context, conf.vendor_id, conf.product_id) {
-            Some(mut handle) => {
+            Ok(mut handle) => {
                 let mut challenge = [0; 64];
                 //(&mut challenge[..6]).copy_from_slice(chall);
 
@@ -215,7 +215,7 @@ impl Yubico {
 
                 Ok(block)
             },
-            None => Err(YubicoError::OpenDeviceError)
+            Err(error) => Err(error)
         }
     }
 }

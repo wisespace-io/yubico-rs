@@ -15,10 +15,14 @@ fn main() {
            .set_product_id(device.product_id)
            .set_slot(Slot::Slot2);
 
-       let serial_number = yubi.read_serial_number(config).unwrap();
-
-       println!("Serial Number {}", serial_number);
-     
+       match yubi.read_serial_number(config){
+            Ok(serial_number) => {
+                println!("Serial Number {}", serial_number);
+            },
+            Err(error) => { 
+                println!("{}", error);
+            }
+        };
    } else {
        println!("Yubikey not found");
    }
