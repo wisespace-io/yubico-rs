@@ -38,7 +38,7 @@ You can enable or disable them using the example below:
 
   ```toml
   [dependencies.yubico]
-  version = "0.5"
+  version = "0.6"
   # don't include the default features (online)
   default-features = false
   # cherry-pick individual features

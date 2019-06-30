@@ -103,7 +103,7 @@ fn build_request<S>(otp: S, config: &Config) -> Result<Request>
         false => Err(YubicoError::BadOTP),
         _ => {
             let nonce: String = generate_nonce();
-            let mut query = format!("id={}&nonce={}&otp={}&sl=secure", config.client_id, nonce, str_otp);
+            let mut query = format!("id={}&nonce={}&otp={}&sl={}", config.client_id, nonce, str_otp, config.sync_level);
 
             match sec::build_signature(&config.key, query.as_bytes()) {
                 Ok(signature) => {

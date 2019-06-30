@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 static API1_HOST : &'static str = "https://api.yubico.com/wsapi/2.0/verify";
 static API2_HOST : &'static str = "https://api2.yubico.com/wsapi/2.0/verify";
 static API3_HOST : &'static str = "https://api3.yubico.com/wsapi/2.0/verify";
@@ -14,6 +16,38 @@ pub enum Slot {
 pub enum Mode {
     Sha1,
     Otp,
+}
+
+/// From the Validation Protocol documentation:
+///
+/// A value 0 to 100 indicating percentage of syncing required by client,
+/// or strings "fast" or "secure" to use server-configured values; if
+/// absent, let the server decide.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct SyncLevel(u8);
+
+impl SyncLevel {
+    pub fn fast() -> SyncLevel {
+        SyncLevel(0)
+    }
+
+    pub fn secure() -> SyncLevel {
+        SyncLevel(100)
+    }
+
+    pub fn custom(level: u8) -> SyncLevel {
+        if level > 100 {
+            SyncLevel(100)
+        } else {
+            SyncLevel(level)
+        }
+    }
+}
+
+impl Display for SyncLevel{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "{}", self.0)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -44,6 +78,7 @@ pub struct Config {
     pub command: Command,
     pub api_hosts: Vec<String>,
     pub user_agent: String,
+    pub sync_level: SyncLevel,
 }
 
 #[allow(dead_code)]
@@ -60,6 +95,7 @@ impl Config {
             command: Command::ChallengeHmac1,
             api_hosts: build_hosts(),
             user_agent: "github.com/wisespace-io/yubico-rs".to_string(),
+            sync_level: SyncLevel::secure(),
         }
     }
 
@@ -114,6 +150,11 @@ impl Config {
 
     pub fn set_user_agent(mut self, user_agent: String) -> Self {
         self.user_agent = user_agent;
+        self
+    }
+
+    pub fn set_sync_level(mut self, level: SyncLevel) -> Self {
+        self.sync_level = level;
         self
     }
 }

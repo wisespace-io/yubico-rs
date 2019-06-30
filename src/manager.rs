@@ -18,38 +18,54 @@ bitflags! {
     }
 }
 
-pub fn open_device(context: &mut Context, vid: u16, pid: u16) -> Option<DeviceHandle> {
+pub fn open_device(context: &mut Context, vid: u16, pid: u16) -> Result<DeviceHandle, YubicoError> {
     let devices = match context.devices() {
-        Ok(d) => d,
-        Err(_) => return None
+        Ok(device) => device,
+        Err(_) => {
+            return Err(YubicoError::DeviceNotFound);
+        }
     };
 
     for mut device in devices.iter() {
         let device_desc = match device.device_descriptor() {
-            Ok(d) => d,
-            Err(_) => continue
+            Ok(device) => device,
+            Err(_) => {
+                return Err(YubicoError::DeviceNotFound);
+            }
         };
 
         if device_desc.vendor_id() == vid && device_desc.product_id() == pid {
             match device.open() {
                 Ok(mut handle) => {
-                    let config = device.config_descriptor(0).unwrap();
-                    let usb_int = config.interfaces().next().unwrap().descriptors().next().unwrap();
+                    let config = match device.config_descriptor(0) {
+                        Ok(c) => c,
+                        Err(_) => continue
+                    };
 
-                    if handle.kernel_driver_active(0).unwrap() {
-                        handle.detach_kernel_driver(0).unwrap();
+                    for interface in config.interfaces() {
+                        for usb_int in interface.descriptors() {
+                            match handle.kernel_driver_active(usb_int.interface_number()) {
+                                Ok(true) => {
+                                    handle.detach_kernel_driver(usb_int.interface_number())?;
+                                },
+                                _ => continue
+                            };
+
+                            handle.set_active_configuration(config.number())?;
+                            handle.claim_interface(usb_int.interface_number())?;
+                        }
                     }
 
-                    handle.set_active_configuration(1).unwrap_or(()); 
-                    handle.claim_interface(usb_int.interface_number()).unwrap();                   
-                    return Some(handle)
+                    return Ok(handle)
                 },
-                Err(_) => continue
+                Err(_) => {
+                    return Err(YubicoError::OpenDeviceError);
+                }
             }
         }
     }
 
-    None
+    Err(YubicoError::DeviceNotFound)
 }
 
 pub fn wait<F: Fn(Flags) -> bool>(handle: &mut DeviceHandle, f: F, buf: &mut [u8]) -> Result<(), YubicoError>  {
