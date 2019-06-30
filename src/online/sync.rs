@@ -22,8 +22,9 @@ pub fn verify<S>(otp: S, config: Config) -> Result<String>
     for api_host in config.api_hosts {
         let tx = tx.clone();
         let request = request.clone();
+        let user_agent = config.user_agent.clone();
         pool.execute(move || {
-            process(tx, api_host.as_str(), &request);
+            process(tx, api_host.as_str(), &request, user_agent);
         });
     }
 
@@ -61,8 +62,8 @@ enum Response {
     Signal(Result<String>),
 }
 
-fn process(sender: Sender<Response>, api_host: &str, request: &Request) {
-    match get(request.build_url(api_host)) {
+fn process(sender: Sender<Response>, api_host: &str, request: &Request, user_agent: String) {
+    match get(request.build_url(api_host), user_agent) {
         Ok(raw_response) => {
             let result = request.response_verifier.verify_response(raw_response)
                 .map(|()| "The OTP is valid.".to_owned());
@@ -74,11 +75,11 @@ fn process(sender: Sender<Response>, api_host: &str, request: &Request) {
     }
 }
 
-pub fn get(url: String) -> Result<String> {
+pub fn get(url: String, user_agent: String) -> Result<String> {
     let client = reqwest::Client::new();
     let mut response = client
         .get(url.as_str())
-        .header(USER_AGENT, "github.com/wisespace-io/yubico-rs")
+        .header(USER_AGENT, user_agent)
         .send()?;
 
     let mut data = String::new();

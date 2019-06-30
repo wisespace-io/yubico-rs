@@ -86,8 +86,7 @@ impl AsyncVerifier {
     fn request(&self, url: &str) -> impl Future<Item=String, Error=YubicoError> {
         let request = self.client
             .get(url)
-            // TODO Users might want to customize this in order to avoid exposing what client is used.
-            .header(USER_AGENT, "github.com/wisespace-io/yubico-rs");
+            .header(USER_AGENT, self.config.user_agent.clone());
 
         request
             .send()
