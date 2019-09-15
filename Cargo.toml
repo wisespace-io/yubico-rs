@@ -18,30 +18,21 @@ name = "yubico"
 path = "src/lib.rs"
 
 [dependencies]
-url = "1.7"
-reqwest = {version = "0.9", optional = true}
-futures = {version = "0.1.23", optional = true}
-rand = "0.6"
 base64 = "0.10"
-threadpool = "1.7"
-bitflags = "1.0.3"
-libusb = {version = "0.2", optional = true}
-structure = "0.1"
-
-aes-soft = "^0.3"
-block-modes = "^0.3"
 crypto-mac = "0.7"
+futures = {version = "0.1.23", optional = true}
 hmac = "^0.7"
+rand = "0.6"
+reqwest = "0.9"
 sha-1 = "^0.8"
 subtle = "2.0"
+threadpool = "1.7"
+url = "1.7"
 
 [dev-dependencies]
 tokio = "0.1"
-hex = "0.3.2"
-rand = "0.6.0"
+futures = "0.1.23"
 
 [features]
-default = ["online", "usb", "online-tokio"]
-online-tokio = ["reqwest", "futures"]
-online = ["reqwest"]
-usb = ["libusb"]
+default = ["online-tokio"]
+online-tokio = ["futures"]

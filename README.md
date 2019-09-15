@@ -15,9 +15,10 @@
 
 ## Current features
 
-- [X] Yubikey client API library, [validation protocol version 2.0](https://developers.yubico.com/yubikey-val/Validation_Protocol_V2.0.html).
-- [X] [Challenge-Response](https://wiki.archlinux.org/index.php/yubikey#Function_and_Application_of_Challenge-Response), YubiKey 2.2 and later supports HMAC-SHA1 or Yubico challenge-response operations.
-- [x] Configuration.
+- [X] Synchronous Yubikey client API library, [validation protocol version 2.0](https://developers.yubico.com/yubikey-val/Validation_Protocol_V2.0.html).
+- [X] Asynchronous Yubikey client API library relying on [Tokio](https://github.com/tokio-rs/tokio)
+
+The USB-related features have been moved to a [separated repository](https://github.com/wisespace-io/yubico-manager)
 
 ## Usage
 
@@ -30,9 +31,7 @@ yubico = "0.6"
 
 The following are a list of Cargo features that can be enabled or disabled:
 
-- online (enabled by default): Provides TLS support via Reqwest to connect over HTTPS in order to validate OTP against the yubico/custom servers. On Linux, it will use OpenSSL 1.1.
 - online-tokio (enabled by default): Provides integration to Tokio using futures.
-- usb (enabled by default): Provides USB support via libusb. It can safely be disabled when using the library to do only OTP with servers.
 
 You can enable or disable them using the example below:
 
@@ -88,93 +87,53 @@ fn main() {
 }
 ```
 
-### Configure Yubikey (HMAC-SHA1 mode)
-
-Note, please read about the [initial configuration](https://wiki.archlinux.org/index.php/yubikey#Initial_configuration)
-Alternatively you can configure the yubikey with the official [Yubikey Personalization GUI](https://developers.yubico.com/yubikey-personalization-gui/).
+### Asynchronous OTP validation
 
 ```rust
-extern crate rand;
+#![recursion_limit="128"]
+extern crate futures;
+extern crate tokio;
 extern crate yubico;
 
-use yubico::{Yubico};
-use yubico::config::{Config, Command};
-use yubico::configure::{ DeviceModeConfig };
-use yubico::hmacmode::{ HmacKey };
-use rand::{thread_rng, Rng};
-use rand::distributions::{Alphanumeric};
+use futures::future::Future;
+use yubico::verify_async;
+extern crate yubico;
+
+use std::io::stdin;
+use yubico::config::Config;
 
 fn main() {
-   let mut yubi = Yubico::new();
+    println!("Please plug in a yubikey and enter an OTP");
 
-   if let Ok(device) = yubi.find_yubikey() {
-       println!("Vendor ID: {:?} Product ID {:?}", device.vendor_id, device.product_id);
+    let client_id = std::env::var("YK_CLIENT_ID")
+        .expect("Please set a value to the YK_CLIENT_ID environment variable.");
 
-       let config = Config::default()
-           .set_vendor_id(device.vendor_id)
-           .set_product_id(device.product_id)
-           .set_command(Command::Configuration2);
+    let api_key = std::env::var("YK_API_KEY")
+        .expect("Please set a value to the YK_API_KEY environment variable.");
 
-        let mut rng = thread_rng();
+    let otp = read_user_input();
 
-        // Secret must have 20 bytes
-        // Used rand here, but you can set your own secret: let secret: &[u8; 20] = b"my_awesome_secret_20";
-        let secret: String = rng.sample_iter(&Alphanumeric).take(20).collect();
-        let hmac_key: HmacKey = HmacKey::from_slice(secret.as_bytes());
+    let config = Config::default()
+        .set_client_id(client_id)
+        .set_key(api_key);
 
-        let mut device_config = DeviceModeConfig::default();
-        device_config.challenge_response_hmac(&hmac_key, false, false);
-
-        if let Err(err) = yubi.write_config(config, &mut device_config) {
-            println!("{:?}", err);
-        } else {
-            println!("Device configured");
-        }
-
-   } else {
-       println!("Yubikey not found");
-   }
+    tokio::run(verify_async(otp, config)
+        .unwrap()
+        .map(|_|{
+            println!("Valid OTP.");
+        })
+        .map_err(|err|{
+            println!("Invalid OTP. Cause: {:?}", err);
+        }))
 }
-```
 
-### Example Challenge-Response (HMAC-SHA1 mode)
+fn read_user_input() -> String {
+    let mut buf = String::new();
 
-Configure the yubikey with [Yubikey Personalization GUI](https://developers.yubico.com/yubikey-personalization-gui/)
+    stdin()
+        .read_line(&mut buf)
+        .expect("Could not read user input.");
 
-```rust
-extern crate hex;
-extern crate yubico;
-
-use std::ops::Deref;
-use yubico::{Yubico};
-use yubico::config::{Config, Slot, Mode};
-
-fn main() {
-   let mut yubi = Yubico::new();
-
-   if let Ok(device) = yubi.find_yubikey() {
-       println!("Vendor ID: {:?} Product ID {:?}", device.vendor_id, device.product_id);
-
-       let config = Config::default()
-           .set_vendor_id(device.vendor_id)
-           .set_product_id(device.product_id)
-           .set_variable_size(true)
-           .set_mode(Mode::Sha1)
-           .set_slot(Slot::Slot2);
-
-       // Challenge can not be greater than 64 bytes
-       let challenge = String::from("mychallenge");
-       // In HMAC Mode, the result will always be the SAME for the SAME provided challenge
-       let hmac_result= yubi.challenge_response_hmac(challenge.as_bytes(), config).unwrap();
-
-       // Just for debug, lets check the hex
-       let v: &[u8] = hmac_result.deref();
-       let hex_string = hex::encode(v);
-
-       println!("{}", hex_string);
-
-   } else {
-       println!("Yubikey not found");
-   }
+    buf
 }
 ```

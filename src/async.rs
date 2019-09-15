@@ -3,9 +3,8 @@ use futures::Stream;
 use reqwest::async::Client;
 use reqwest::header::USER_AGENT;
 
-use Result;
+use ::{Result, build_request};
 use config::Config;
-use online::build_request;
 use yubicoerror::YubicoError;
 use std::sync::Arc;
 

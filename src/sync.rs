@@ -5,9 +5,9 @@ use reqwest::header::USER_AGENT;
 use threadpool::ThreadPool;
 
 use config::Config;
-use online::build_request;
-use online::Request;
-use Result;
+use crate::build_request;
+use crate::Request;
+use crate::Result;
 use yubicoerror::YubicoError;
 
 pub fn verify<S>(otp: S, config: Config) -> Result<String>
