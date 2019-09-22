@@ -18,7 +18,7 @@
 - [X] Synchronous Yubikey client API library, [validation protocol version 2.0](https://developers.yubico.com/yubikey-val/Validation_Protocol_V2.0.html).
 - [X] Asynchronous Yubikey client API library relying on [Tokio](https://github.com/tokio-rs/tokio)
 
-The USB-related features have been moved to a [separated repository](https://github.com/wisespace-io/yubico-manager)
+**Note:** The USB-related features have been moved to a sepatated repository, [yubico-manager](https://github.com/wisespace-io/yubico-manager)
 
 ## Usage
 
@@ -26,7 +26,7 @@ Add this to your Cargo.toml
 
 ```toml
 [dependencies]
-yubico = "0.6"
+yubico = "0.7"
 ```
 
 The following are a list of Cargo features that can be enabled or disabled:
@@ -37,7 +37,7 @@ You can enable or disable them using the example below:
 
   ```toml
   [dependencies.yubico]
-  version = "0.6"
+  version = "0.7"
   # don't include the default features (online)
   default-features = false
   # cherry-pick individual features
