@@ -1,8 +1,8 @@
+use base64::DecodeError as base64Error;
 use std::error::Error as StdError;
+use std::fmt;
 use std::io::Error as ioError;
 use std::sync::mpsc::RecvError as channelError;
-use base64::DecodeError as base64Error;
-use std::fmt;
 
 #[derive(Debug)]
 pub enum YubicoError {
@@ -52,15 +52,31 @@ impl fmt::Display for YubicoError {
             YubicoError::BadSignature => write!(f, "The HMAC signature verification failed."),
             YubicoError::MissingParameter => write!(f, "The request lacks a parameter."),
             YubicoError::NoSuchClient => write!(f, "The request id does not exist."),
-            YubicoError::OperationNotAllowed => write!(f, "The request id is not allowed to verify OTPs."),
-            YubicoError::BackendError => write!(f, "Unexpected error in our server. Please contact us if you see this error."),
-            YubicoError::NotEnoughAnswers => write!(f, "Server could not get requested number of syncs during before timeout"),
-            YubicoError::ReplayedRequest => write!(f, "Server has seen the OTP/Nonce combination before"),
-            YubicoError::UnknownStatus => write!(f, "Unknown status sent by the OTP validation server"),
+            YubicoError::OperationNotAllowed => {
+                write!(f, "The request id is not allowed to verify OTPs.")
+            }
+            YubicoError::BackendError => write!(
+                f,
+                "Unexpected error in our server. Please contact us if you see this error."
+            ),
+            YubicoError::NotEnoughAnswers => write!(
+                f,
+                "Server could not get requested number of syncs during before timeout"
+            ),
+            YubicoError::ReplayedRequest => {
+                write!(f, "Server has seen the OTP/Nonce combination before")
+            }
+            YubicoError::UnknownStatus => {
+                write!(f, "Unknown status sent by the OTP validation server")
+            }
             YubicoError::OTPMismatch => write!(f, "OTP mismatch, It may be an attack attempt"),
             YubicoError::NonceMismatch => write!(f, "Nonce mismatch, It may be an attack attempt"),
-            YubicoError::SignatureMismatch => write!(f, "Signature mismatch, It may be an attack attempt"),
-            YubicoError::InvalidKeyLength => write!(f, "Invalid key length encountered while building signature"),
+            YubicoError::SignatureMismatch => {
+                write!(f, "Signature mismatch, It may be an attack attempt")
+            }
+            YubicoError::InvalidKeyLength => {
+                write!(f, "Invalid key length encountered while building signature")
+            }
         }
     }
 }
@@ -94,7 +110,7 @@ impl StdError for YubicoError {
         }
     }
 
-    fn cause(&self) -> Option<& dyn StdError> {
+    fn cause(&self) -> Option<&dyn StdError> {
         match *self {
             YubicoError::Network(ref err) => Some(err),
             YubicoError::HTTPStatusCode(_) => None,
@@ -102,13 +118,11 @@ impl StdError for YubicoError {
             YubicoError::ChannelError(ref err) => Some(err),
             YubicoError::DecodeError(ref err) => Some(err),
             #[cfg(feature = "online-tokio")]
-            YubicoError::MultipleErrors(ref errs) => {
-                match errs.first() {
-                    Some(err) => Some(err),
-                    None => None
-                }
+            YubicoError::MultipleErrors(ref errs) => match errs.first() {
+                Some(err) => Some(err),
+                None => None,
             },
-            _ => None
+            _ => None,
         }
     }
 }

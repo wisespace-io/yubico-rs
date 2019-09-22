@@ -1,10 +1,10 @@
 use std::fmt::Display;
 
-static API1_HOST : &'static str = "https://api.yubico.com/wsapi/2.0/verify";
-static API2_HOST : &'static str = "https://api2.yubico.com/wsapi/2.0/verify";
-static API3_HOST : &'static str = "https://api3.yubico.com/wsapi/2.0/verify";
-static API4_HOST : &'static str = "https://api4.yubico.com/wsapi/2.0/verify";
-static API5_HOST : &'static str = "https://api5.yubico.com/wsapi/2.0/verify";
+static API1_HOST: &'static str = "https://api.yubico.com/wsapi/2.0/verify";
+static API2_HOST: &'static str = "https://api2.yubico.com/wsapi/2.0/verify";
+static API3_HOST: &'static str = "https://api3.yubico.com/wsapi/2.0/verify";
+static API4_HOST: &'static str = "https://api4.yubico.com/wsapi/2.0/verify";
+static API5_HOST: &'static str = "https://api5.yubico.com/wsapi/2.0/verify";
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Slot {
@@ -44,7 +44,7 @@ impl SyncLevel {
     }
 }
 
-impl Display for SyncLevel{
+impl Display for SyncLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         write!(f, "{}", self.0)
     }
@@ -72,14 +72,16 @@ impl Config {
     }
 
     pub fn set_client_id<C>(mut self, client_id: C) -> Self
-        where C: Into<String>
+    where
+        C: Into<String>,
     {
         self.client_id = client_id.into();
         self
     }
 
     pub fn set_key<K>(mut self, key: K) -> Self
-        where K: Into<String>
+    where
+        K: Into<String>,
     {
         self.key = key.into().into_bytes();
         self

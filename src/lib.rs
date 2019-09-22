@@ -1,7 +1,7 @@
 extern crate base64;
+extern crate crypto_mac;
 #[cfg(feature = "online-tokio")]
 extern crate futures;
-extern crate crypto_mac;
 extern crate hmac;
 extern crate rand;
 extern crate reqwest;
@@ -9,30 +9,30 @@ extern crate sha1;
 extern crate subtle;
 
 extern crate threadpool;
-#[macro_use] extern crate url;
+#[macro_use]
+extern crate url;
 extern crate core;
 
 #[cfg(feature = "online-tokio")]
 pub mod async;
-pub mod yubicoerror;
 pub mod config;
 mod sec;
 pub mod sync;
+pub mod yubicoerror;
 
 use std::collections::BTreeMap;
 
 use base64::{decode, encode};
-use rand::distributions::Alphanumeric;
-use rand::Rng;
-use rand::rngs::OsRng;
-use url::percent_encoding::{SIMPLE_ENCODE_SET, utf8_percent_encode};
-use yubicoerror::YubicoError;
 use config::Config;
+use rand::distributions::Alphanumeric;
+use rand::rngs::OsRng;
+use rand::Rng;
+use url::percent_encoding::{utf8_percent_encode, SIMPLE_ENCODE_SET};
+use yubicoerror::YubicoError;
 
-pub use sync::verify;
 #[cfg(feature = "online-tokio")]
 pub use async::verify_async;
-
+pub use sync::verify;
 
 type Result<T> = ::std::result::Result<T, YubicoError>;
 
@@ -61,31 +61,26 @@ pub struct ResponseVerifier {
 }
 
 impl ResponseVerifier {
-    fn verify_response(
-        &self,
-        raw_response: String,
-    )
-        -> Result<()>
-    {
+    fn verify_response(&self, raw_response: String) -> Result<()> {
         let response_map: BTreeMap<String, String> = build_response_map(raw_response);
 
         let status: &str = &*response_map.get("status").unwrap();
 
         if let "OK" = status {
             // Signature located in the response must match the signature we will build
-            let signature_response : &str = &*response_map.get("h").unwrap();
+            let signature_response: &str = &*response_map.get("h").unwrap();
             if !is_same_signature(signature_response, response_map.clone(), &self.key) {
                 return Err(YubicoError::SignatureMismatch);
             }
 
             // Check if "otp" in the response is the same as the "otp" supplied in the request.
-            let otp_response : &str = &*response_map.get("otp").unwrap();
+            let otp_response: &str = &*response_map.get("otp").unwrap();
             if !self.otp.eq(otp_response) {
                 return Err(YubicoError::OTPMismatch);
             }
 
             // Check if "nonce" in the response is the same as the "nonce" supplied in the request.
-            let nonce_response : &str = &*response_map.get("nonce").unwrap();
+            let nonce_response: &str = &*response_map.get("nonce").unwrap();
             if !self.nonce.eq(nonce_response) {
                 return Err(YubicoError::NonceMismatch);
             }
@@ -103,14 +98,16 @@ impl ResponseVerifier {
                 "BACKEND_ERROR" => Err(YubicoError::BackendError),
                 "NOT_ENOUGH_ANSWERS" => Err(YubicoError::NotEnoughAnswers),
                 "REPLAYED_REQUEST" => Err(YubicoError::ReplayedRequest),
-                _ => Err(YubicoError::UnknownStatus)
+                _ => Err(YubicoError::UnknownStatus),
             }
         }
     }
 }
 
 fn build_request<S>(otp: S, config: &Config) -> Result<Request>
-    where S: Into<String> {
+where
+    S: Into<String>,
+{
     let str_otp = otp.into();
 
     // A Yubikey can be configured to add line ending chars, or not.
@@ -120,7 +117,10 @@ fn build_request<S>(otp: S, config: &Config) -> Result<Request>
         false => Err(YubicoError::BadOTP),
         _ => {
             let nonce: String = generate_nonce();
-            let mut query = format!("id={}&nonce={}&otp={}&sl={}", config.client_id, nonce, str_otp, config.sync_level);
+            let mut query = format!(
+                "id={}&nonce={}&otp={}&sl={}",
+                config.client_id, nonce, str_otp, config.sync_level
+            );
 
             match sec::build_signature(&config.key, query.as_bytes()) {
                 Ok(signature) => {
@@ -129,7 +129,8 @@ fn build_request<S>(otp: S, config: &Config) -> Result<Request>
 
                     // Append the value under key h to the message.
                     let signature_param = format!("&h={}", encoded_signature);
-                    let encoded = utf8_percent_encode(signature_param.as_ref(), QUERY_ENCODE_SET).collect::<String>();
+                    let encoded = utf8_percent_encode(signature_param.as_ref(), QUERY_ENCODE_SET)
+                        .collect::<String>();
                     query.push_str(encoded.as_ref());
 
                     let verifier = ResponseVerifier {
@@ -144,12 +145,10 @@ fn build_request<S>(otp: S, config: &Config) -> Result<Request>
                     };
 
                     Ok(request)
-                },
-                Err(error) => {
-                    return Err(error)
                 }
+                Err(error) => return Err(error),
             }
-        },
+        }
     }
 }
 
@@ -164,7 +163,8 @@ fn printable_characters(otp: &str) -> bool {
 }
 
 fn generate_nonce() -> String {
-    OsRng::new().unwrap()
+    OsRng::new()
+        .unwrap()
         .sample_iter(&Alphanumeric)
         .take(40)
         .collect()
