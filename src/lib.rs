@@ -1,221 +1,209 @@
-#[cfg(any(feature = "online", feature = "online-tokio"))]
-extern crate reqwest;
-#[cfg(feature = "usb")]
-extern crate libusb;
-
-#[macro_use] extern crate structure;
-#[macro_use] extern crate url;
-
-extern crate aes_soft as aes;
 extern crate base64;
-extern crate block_modes;
 extern crate crypto_mac;
+#[cfg(feature = "online-tokio")]
+extern crate futures;
 extern crate hmac;
 extern crate rand;
+extern crate reqwest;
 extern crate sha1;
-extern crate threadpool;
-#[macro_use] extern crate bitflags;
 extern crate subtle;
-extern crate futures;
 
-#[cfg(feature = "usb")]
-mod manager;
-pub mod otpmode;
-pub mod hmacmode;
-pub mod sec;
-pub mod config;
-#[cfg(feature = "usb")]
-pub mod configure;
-pub mod yubicoerror;
-#[cfg(any(feature = "online", feature = "online-tokio"))]
-mod online;
+extern crate threadpool;
+#[macro_use]
+extern crate url;
+extern crate core;
 
-use aes::block_cipher_trait::generic_array::GenericArray;
-
-use config::Command;
-#[cfg(feature = "usb")]
-use configure::{ DeviceModeConfig };
-use hmacmode::{ Hmac };
-use otpmode::{ Aes128Block };
-use sec::{ CRC_RESIDUAL_OK, crc16 };
-#[cfg(feature = "usb")]
-use manager::{ Frame, Flags };
-use config::{Config, Slot};
-use yubicoerror::YubicoError;
-#[cfg(feature = "usb")]
-use libusb::{Context};
-
-#[cfg(feature = "online")]
-pub use online::verify;
 #[cfg(feature = "online-tokio")]
-pub use online::verify_async;
+pub mod async;
+pub mod config;
+mod sec;
+pub mod sync;
+pub mod yubicoerror;
 
-const VENDOR_ID: u16 = 0x1050;
+use std::collections::BTreeMap;
 
-/// The `Result` type used in this crate.
+use base64::{decode, encode};
+use config::Config;
+use rand::distributions::Alphanumeric;
+use rand::rngs::OsRng;
+use rand::Rng;
+use url::percent_encoding::{utf8_percent_encode, SIMPLE_ENCODE_SET};
+use yubicoerror::YubicoError;
+
+#[cfg(feature = "online-tokio")]
+pub use async::verify_async;
+pub use sync::verify;
+
 type Result<T> = ::std::result::Result<T, YubicoError>;
 
+define_encode_set! {
+    /// This encode set is used in the URL parser for query strings.
+    pub QUERY_ENCODE_SET = [SIMPLE_ENCODE_SET] | {'+', '='}
+}
+
 #[derive(Clone)]
-pub struct Device {
-    pub product_id: u16,
-    pub vendor_id: u16
+pub struct Request {
+    query: String,
+    response_verifier: ResponseVerifier,
 }
 
-pub struct Yubico {
-    #[cfg(feature = "usb")]
-    context: Context,
-}
-
-impl Yubico {
-    /// Creates a new Yubico instance.
-    pub fn new() -> Self { 
-        Yubico {
-            #[cfg(feature = "usb")]
-            context: Context::new().unwrap(),         
-        }
+impl Request {
+    fn build_url(&self, for_api_host: &str) -> String {
+        format!("{}?{}", for_api_host, self.query)
     }
+}
 
-    #[cfg(feature = "usb")]
-    pub fn find_yubikey(&mut self) -> Result<Device> {
-        for mut device in self.context.devices().unwrap().iter() {
-            let descr = device.device_descriptor().unwrap();
-            if descr.vendor_id() == VENDOR_ID {
-                let device = Device {
-                    product_id: descr.product_id(),
-                    vendor_id: descr.vendor_id()
-                };
-                return Ok(device);
+#[derive(Clone)]
+pub struct ResponseVerifier {
+    otp: String,
+    nonce: String,
+    key: Vec<u8>,
+}
+
+impl ResponseVerifier {
+    fn verify_response(&self, raw_response: String) -> Result<()> {
+        let response_map: BTreeMap<String, String> = build_response_map(raw_response);
+
+        let status: &str = &*response_map.get("status").unwrap();
+
+        if let "OK" = status {
+            // Signature located in the response must match the signature we will build
+            let signature_response: &str = &*response_map.get("h").unwrap();
+            if !is_same_signature(signature_response, response_map.clone(), &self.key) {
+                return Err(YubicoError::SignatureMismatch);
+            }
+
+            // Check if "otp" in the response is the same as the "otp" supplied in the request.
+            let otp_response: &str = &*response_map.get("otp").unwrap();
+            if !self.otp.eq(otp_response) {
+                return Err(YubicoError::OTPMismatch);
+            }
+
+            // Check if "nonce" in the response is the same as the "nonce" supplied in the request.
+            let nonce_response: &str = &*response_map.get("nonce").unwrap();
+            if !self.nonce.eq(nonce_response) {
+                return Err(YubicoError::NonceMismatch);
+            }
+
+            Ok(())
+        } else {
+            // Check the status of the operation
+            match status {
+                "BAD_OTP" => Err(YubicoError::BadOTP),
+                "REPLAYED_OTP" => Err(YubicoError::ReplayedOTP),
+                "BAD_SIGNATURE" => Err(YubicoError::BadSignature),
+                "MISSING_PARAMETER" => Err(YubicoError::MissingParameter),
+                "NO_SUCH_CLIENT" => Err(YubicoError::NoSuchClient),
+                "OPERATION_NOT_ALLOWED" => Err(YubicoError::OperationNotAllowed),
+                "BACKEND_ERROR" => Err(YubicoError::BackendError),
+                "NOT_ENOUGH_ANSWERS" => Err(YubicoError::NotEnoughAnswers),
+                "REPLAYED_REQUEST" => Err(YubicoError::ReplayedRequest),
+                _ => Err(YubicoError::UnknownStatus),
             }
         }
-
-        Err(YubicoError::DeviceNotFound)
     }
+}
 
-    #[cfg(feature = "usb")]
-    pub fn write_config(&mut self, conf: Config, device_config: &mut DeviceModeConfig) -> Result<()> {
-        let d = device_config.to_frame(conf.command);
-        let mut buf = [0; 8];
+fn build_request<S>(otp: S, config: &Config) -> Result<Request>
+where
+    S: Into<String>,
+{
+    let str_otp = otp.into();
 
-        match manager::open_device(&mut self.context, conf.vendor_id, conf.product_id) {
-            Ok(mut handle) => {
-                manager::wait(&mut handle, |f| !f.contains(Flags::SLOT_WRITE_FLAG), &mut buf)?;
+    // A Yubikey can be configured to add line ending chars, or not.
+    let str_otp = str_otp.trim().to_string();
 
-                // TODO: Should check version number.
+    match printable_characters(&str_otp) {
+        false => Err(YubicoError::BadOTP),
+        _ => {
+            let nonce: String = generate_nonce();
+            let mut query = format!(
+                "id={}&nonce={}&otp={}&sl={}",
+                config.client_id, nonce, str_otp, config.sync_level
+            );
 
-                manager::write_frame(&mut handle, &d)?;
-                manager::wait(&mut handle, |f| !f.contains(Flags::SLOT_WRITE_FLAG), &mut buf)?;
+            match sec::build_signature(&config.key, query.as_bytes()) {
+                Ok(signature) => {
+                    // Base 64 encode the resulting value according to RFC 4648
+                    let encoded_signature = encode(&signature.code());
 
-                Ok(())
-            },
-            Err(error) => Err(error)
+                    // Append the value under key h to the message.
+                    let signature_param = format!("&h={}", encoded_signature);
+                    let encoded = utf8_percent_encode(signature_param.as_ref(), QUERY_ENCODE_SET)
+                        .collect::<String>();
+                    query.push_str(encoded.as_ref());
+
+                    let verifier = ResponseVerifier {
+                        otp: str_otp,
+                        nonce,
+                        key: config.key.clone(),
+                    };
+
+                    let request = Request {
+                        query,
+                        response_verifier: verifier,
+                    };
+
+                    Ok(request)
+                }
+                Err(error) => return Err(error),
+            }
         }
     }
+}
 
-    #[cfg(feature = "usb")]
-    pub fn read_serial_number(&mut self, conf: Config) -> Result<u32> {
-
-        match manager::open_device(&mut self.context, conf.vendor_id, conf.product_id) {
-            Ok(mut handle) => {
-                let mut challenge = [0; 64];
-                let mut command = Command::DeviceSerial;
-
-                let d = Frame::new(challenge, command); // FixMe: do not need a challange
-                let mut buf = [0; 8];
-                manager::wait(&mut handle, |f| !f.contains(manager::Flags::SLOT_WRITE_FLAG), &mut buf)?;
- 
-                manager::write_frame(&mut handle, &d)?;
-
-                // Read the response.
-                let mut response = [0; 36];
-                manager::read_response(&mut handle, &mut response)?;
-
-                // Check response.
-                if crc16(&response[..6]) != CRC_RESIDUAL_OK {
-                    return Err(YubicoError::WrongCRC);
-                }
-
-                let serial = structure!("2I").unpack(response[..8].to_vec())?;
-
-                Ok(serial.0)
-            },
-            Err(error) => Err(error)
+// Recommendation is that clients only check that the input consists of 32-48 printable characters
+fn printable_characters(otp: &str) -> bool {
+    for c in otp.chars() {
+        if !c.is_ascii() {
+            return false;
         }
     }
+    otp.len() > 32 && otp.len() < 48
+}
 
-    #[cfg(feature = "usb")]
-    pub fn challenge_response_hmac(&mut self, chall: &[u8], conf: Config) -> Result<Hmac> {
-        let mut hmac = Hmac([0; 20]);
+fn generate_nonce() -> String {
+    OsRng::new()
+        .unwrap()
+        .sample_iter(&Alphanumeric)
+        .take(40)
+        .collect()
+}
 
-        match manager::open_device(&mut self.context, conf.vendor_id, conf.product_id) {
-            Ok(mut handle) => {
-                let mut challenge = [0; 64];
-                
-                if conf.variable && chall.last() == Some(&0) {
-                    challenge = [0xff; 64];
-                }
+// Remove the signature itself from the values over for verification.
+// Sort the key/value pairs.
+fn is_same_signature(
+    signature_response: &str,
+    mut response_map: BTreeMap<String, String>,
+    key: &[u8],
+) -> bool {
+    response_map.remove("h");
 
-                let mut command = Command::ChallengeHmac1;
-                if let Slot::Slot2 = conf.slot {
-                    command = Command::ChallengeHmac2;
-                }
+    let mut query = String::new();
+    for (key, value) in response_map {
+        let param = format!("{}={}&", key, value);
+        query.push_str(param.as_ref());
+    }
+    query.pop(); // remove last &
 
-                (&mut challenge[..chall.len()]).copy_from_slice(chall);
-                let d = Frame::new(challenge, command);
-                let mut buf = [0; 8];
-                manager::wait(&mut handle, |f| !f.contains(manager::Flags::SLOT_WRITE_FLAG), &mut buf)?;
- 
-                manager::write_frame(&mut handle, &d)?;
+    if let Ok(signature) = sec::build_signature(key, query.as_bytes()) {
+        let decoded_signature = &decode(signature_response).unwrap()[..];
 
-                // Read the response.
-                let mut response = [0; 36];
-                manager::read_response(&mut handle, &mut response)?;
+        use subtle::ConstantTimeEq;
 
-                // Check response.
-                if crc16(&response[..22]) != CRC_RESIDUAL_OK {
-                    return Err(YubicoError::WrongCRC);
-                }
+        signature.code().ct_eq(decoded_signature).into()
+    } else {
+        return false;
+    }
+}
 
-                hmac.0.clone_from_slice(&response[..20]);
-
-                Ok(hmac)
-            },
-            Err(error) => Err(error)
+fn build_response_map(result: String) -> BTreeMap<String, String> {
+    let mut parameters = BTreeMap::new();
+    for line in result.lines() {
+        let param: Vec<&str> = line.splitn(2, '=').collect();
+        if param.len() > 1 {
+            parameters.insert(param[0].to_string(), param[1].to_string());
         }
     }
-    
-    #[cfg(feature = "usb")]   
-    pub fn challenge_response_otp(&mut self, chall: &[u8], conf: Config) -> Result<Aes128Block> {
-        let mut block = Aes128Block { block: GenericArray::clone_from_slice(&[0; 16]) };
-
-        match manager::open_device(&mut self.context, conf.vendor_id, conf.product_id) {
-            Ok(mut handle) => {
-                let mut challenge = [0; 64];
-                //(&mut challenge[..6]).copy_from_slice(chall);
-
-                let mut command = Command::ChallengeOtp1;
-                if let Slot::Slot2 = conf.slot {
-                    command = Command::ChallengeOtp2;
-                }
-
-                (&mut challenge[..chall.len()]).copy_from_slice(chall);
-                let d = Frame::new(challenge, command);
-                let mut buf = [0; 8];
-               
-                let mut response = [0; 36];
-                manager::wait(&mut handle, |f| !f.contains(manager::Flags::SLOT_WRITE_FLAG), &mut buf)?;
-                manager::write_frame(&mut handle, &d)?;
-                manager::read_response(&mut handle, &mut response)?;
-
-                // Check response.
-                if crc16(&response[..18]) != CRC_RESIDUAL_OK {
-                    return Err(YubicoError::WrongCRC);
-                }
-
-                block.block.copy_from_slice(&response[..16]);
-
-                Ok(block)
-            },
-            Err(error) => Err(error)
-        }
-    }
+    parameters
 }
