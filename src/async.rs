@@ -31,7 +31,7 @@ impl AsyncVerifier {
         }
     }
 
-    pub fn verify<S>(&mut self, otp: S) -> Result<impl Future<Item = (), Error = YubicoError>>
+    pub fn verify<S>(&self, otp: S) -> Result<impl Future<Item = (), Error = YubicoError>>
     where
         S: Into<String>,
     {
