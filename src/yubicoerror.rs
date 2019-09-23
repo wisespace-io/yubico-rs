@@ -28,6 +28,8 @@ pub enum YubicoError {
     NonceMismatch,
     SignatureMismatch,
     InvalidKeyLength,
+    InvalidResponse,
+    InvalidOtp,
 }
 
 impl fmt::Display for YubicoError {
@@ -79,6 +81,12 @@ impl fmt::Display for YubicoError {
             YubicoError::InvalidKeyLength => {
                 write!(f, "Invalid key length encountered while building signature")
             }
+            YubicoError::InvalidResponse => {
+                write!(f, "Invalid response from the validation server")
+            }
+            YubicoError::InvalidOtp => {
+                write!(f, "Invalid OTP")
+            }
         }
     }
 }
@@ -110,6 +118,8 @@ impl StdError for YubicoError {
             YubicoError::NonceMismatch => "Nonce in the response is the same as the supplied in the request. It may be an attack attempt",
             YubicoError::SignatureMismatch => "Signature in the response is the same as the supplied in the request. It may be an attack attempt",
             YubicoError::InvalidKeyLength => "Invalid key length",
+            YubicoError::InvalidResponse => "Invalid response from the validation server",
+            YubicoError::InvalidOtp => "Invalid OTP",
         }
     }
 

@@ -1,11 +1,11 @@
 use std::fmt::Display;
 use std::time::Duration;
 
-static API1_HOST: &'static str = "https://api.yubico.com/wsapi/2.0/verify";
-static API2_HOST: &'static str = "https://api2.yubico.com/wsapi/2.0/verify";
-static API3_HOST: &'static str = "https://api3.yubico.com/wsapi/2.0/verify";
-static API4_HOST: &'static str = "https://api4.yubico.com/wsapi/2.0/verify";
-static API5_HOST: &'static str = "https://api5.yubico.com/wsapi/2.0/verify";
+static API1_HOST: &str = "https://api.yubico.com/wsapi/2.0/verify";
+static API2_HOST: &str = "https://api2.yubico.com/wsapi/2.0/verify";
+static API3_HOST: &str = "https://api3.yubico.com/wsapi/2.0/verify";
+static API4_HOST: &str = "https://api4.yubico.com/wsapi/2.0/verify";
+static API5_HOST: &str = "https://api5.yubico.com/wsapi/2.0/verify";
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Slot {

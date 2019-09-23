@@ -81,8 +81,7 @@ impl Verifier {
         if success {
             Ok("The OTP is valid.".into())
         } else {
-            let result = results.pop().unwrap();
-            result
+            results.pop().ok_or_else(|| YubicoError::InvalidOtp)?
         }
     }
 }
