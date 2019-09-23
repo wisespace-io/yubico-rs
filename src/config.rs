@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::time::Duration;
 
 static API1_HOST: &'static str = "https://api.yubico.com/wsapi/2.0/verify";
 static API2_HOST: &'static str = "https://api2.yubico.com/wsapi/2.0/verify";
@@ -57,6 +58,8 @@ pub struct Config {
     pub api_hosts: Vec<String>,
     pub user_agent: String,
     pub sync_level: SyncLevel,
+    /// The timeout for HTTP requests.
+    pub request_timeout: Duration,
 }
 
 #[allow(dead_code)]
@@ -68,6 +71,7 @@ impl Config {
             api_hosts: build_hosts(),
             user_agent: "github.com/wisespace-io/yubico-rs".to_string(),
             sync_level: SyncLevel::secure(),
+            request_timeout: Duration::from_secs(30), // Value taken from the reqwest crate.
         }
     }
 
@@ -99,6 +103,11 @@ impl Config {
 
     pub fn set_sync_level(mut self, level: SyncLevel) -> Self {
         self.sync_level = level;
+        self
+    }
+
+    pub fn set_request_timeout(mut self, timeout: Duration) -> Self {
+        self.request_timeout = timeout;
         self
     }
 }

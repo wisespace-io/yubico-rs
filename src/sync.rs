@@ -9,14 +9,14 @@ use crate::Request;
 use crate::Result;
 use config::Config;
 use reqwest::Client;
-use yubicoerror::YubicoError;
 use std::sync::Arc;
+use yubicoerror::YubicoError;
 
 pub fn verify<S>(otp: S, config: Config) -> Result<String>
 where
     S: Into<String>,
 {
-    Verifier::new(config).verify(otp)
+    Verifier::new(config)?.verify(otp)
 }
 
 pub struct Verifier {
@@ -26,13 +26,15 @@ pub struct Verifier {
 }
 
 impl Verifier {
-    pub fn new(config: Config) -> Verifier {
+    pub fn new(config: Config) -> Result<Verifier> {
         let number_of_hosts = config.api_hosts.len();
-        Verifier {
+        let client = Client::builder().timeout(config.request_timeout).build()?;
+
+        Ok(Verifier {
             config,
             thread_pool: ThreadPool::new(number_of_hosts),
-            client: Arc::new(Client::new()),
-        }
+            client: Arc::new(client),
+        })
     }
 
     pub fn verify<S>(&self, otp: S) -> Result<String>
@@ -89,8 +91,13 @@ enum Response {
     Signal(Result<String>),
 }
 
-
-fn process(client: &Client, sender: Sender<Response>, url: String, request: &Request, user_agent: String) {
+fn process(
+    client: &Client,
+    sender: Sender<Response>,
+    url: String,
+    request: &Request,
+    user_agent: String,
+) {
     match get(client, url, user_agent) {
         Ok(raw_response) => {
             let result = request

@@ -6,6 +6,7 @@ use std::sync::mpsc::RecvError as channelError;
 
 #[derive(Debug)]
 pub enum YubicoError {
+    ConfigurationError(reqwest::Error),
     Network(reqwest::Error),
     HTTPStatusCode(reqwest::StatusCode),
     IOError(ioError),
@@ -32,6 +33,7 @@ pub enum YubicoError {
 impl fmt::Display for YubicoError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            YubicoError::ConfigurationError(ref err) => write!(f, "Configuration error: {}", err),
             YubicoError::Network(ref err) => write!(f, "Connectivity error: {}", err),
             YubicoError::HTTPStatusCode(code) => write!(f, "Error found: {}", code),
             YubicoError::IOError(ref err) => write!(f, "IO error: {}", err),
@@ -84,6 +86,7 @@ impl fmt::Display for YubicoError {
 impl StdError for YubicoError {
     fn description(&self) -> &str {
         match *self {
+            YubicoError::ConfigurationError(ref err) => err.description(),
             YubicoError::Network(ref err) => err.description(),
             YubicoError::HTTPStatusCode(_) => "200 not received",
             YubicoError::IOError(ref err) => err.description(),

@@ -15,7 +15,7 @@ pub fn verify_async<S>(
 where
     S: Into<String>,
 {
-    AsyncVerifier::new(config).verify(otp)
+    AsyncVerifier::new(config)?.verify(otp)
 }
 
 pub struct AsyncVerifier {
@@ -24,11 +24,10 @@ pub struct AsyncVerifier {
 }
 
 impl AsyncVerifier {
-    pub fn new(config: Config) -> AsyncVerifier {
-        AsyncVerifier {
-            client: Client::new(),
-            config,
-        }
+    pub fn new(config: Config) -> Result<AsyncVerifier> {
+        let client = Client::builder().timeout(config.request_timeout).build()?;
+
+        Ok(AsyncVerifier { client, config })
     }
 
     pub fn verify<S>(&self, otp: S) -> Result<impl Future<Item = (), Error = YubicoError>>
