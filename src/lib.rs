@@ -68,19 +68,25 @@ impl ResponseVerifier {
 
         if let "OK" = status {
             // Signature located in the response must match the signature we will build
-            let signature_response: &str = &*response_map.get("h").unwrap();
+            let signature_response: &str = &*response_map
+                .get("h")
+                .ok_or_else(|| YubicoError::InvalidResponse)?;
             if !is_same_signature(signature_response, response_map.clone(), &self.key) {
                 return Err(YubicoError::SignatureMismatch);
             }
 
             // Check if "otp" in the response is the same as the "otp" supplied in the request.
-            let otp_response: &str = &*response_map.get("otp").unwrap();
+            let otp_response: &str = &*response_map
+                .get("otp")
+                .ok_or_else(|| YubicoError::InvalidResponse)?;
             if !self.otp.eq(otp_response) {
                 return Err(YubicoError::OTPMismatch);
             }
 
             // Check if "nonce" in the response is the same as the "nonce" supplied in the request.
-            let nonce_response: &str = &*response_map.get("nonce").unwrap();
+            let nonce_response: &str = &*response_map
+                .get("nonce")
+                .ok_or_else(|| YubicoError::InvalidResponse)?;
             if !self.nonce.eq(nonce_response) {
                 return Err(YubicoError::NonceMismatch);
             }
@@ -113,42 +119,41 @@ where
     // A Yubikey can be configured to add line ending chars, or not.
     let str_otp = str_otp.trim().to_string();
 
-    match printable_characters(&str_otp) {
-        false => Err(YubicoError::BadOTP),
-        _ => {
-            let nonce: String = generate_nonce();
-            let mut query = format!(
-                "id={}&nonce={}&otp={}&sl={}",
-                config.client_id, nonce, str_otp, config.sync_level
-            );
+    if printable_characters(&str_otp) {
+        let nonce: String = generate_nonce();
+        let mut query = format!(
+            "id={}&nonce={}&otp={}&sl={}",
+            config.client_id, nonce, str_otp, config.sync_level
+        );
 
-            match sec::build_signature(&config.key, query.as_bytes()) {
-                Ok(signature) => {
-                    // Base 64 encode the resulting value according to RFC 4648
-                    let encoded_signature = encode(&signature.code());
+        match sec::build_signature(&config.key, query.as_bytes()) {
+            Ok(signature) => {
+                // Base 64 encode the resulting value according to RFC 4648
+                let encoded_signature = encode(&signature.code());
 
-                    // Append the value under key h to the message.
-                    let signature_param = format!("&h={}", encoded_signature);
-                    let encoded = utf8_percent_encode(signature_param.as_ref(), QUERY_ENCODE_SET)
-                        .collect::<String>();
-                    query.push_str(encoded.as_ref());
+                // Append the value under key h to the message.
+                let signature_param = format!("&h={}", encoded_signature);
+                let encoded = utf8_percent_encode(signature_param.as_ref(), QUERY_ENCODE_SET)
+                    .collect::<String>();
+                query.push_str(encoded.as_ref());
 
-                    let verifier = ResponseVerifier {
-                        otp: str_otp,
-                        nonce,
-                        key: config.key.clone(),
-                    };
+                let verifier = ResponseVerifier {
+                    otp: str_otp,
+                    nonce,
+                    key: config.key.clone(),
+                };
 
-                    let request = Request {
-                        query,
-                        response_verifier: verifier,
-                    };
+                let request = Request {
+                    query,
+                    response_verifier: verifier,
+                };
 
-                    Ok(request)
-                }
-                Err(error) => return Err(error),
+                Ok(request)
             }
+            Err(error) => Err(error),
         }
+    } else {
+        Err(YubicoError::BadOTP)
     }
 }
 
@@ -193,7 +198,7 @@ fn is_same_signature(
 
         signature.code().ct_eq(decoded_signature).into()
     } else {
-        return false;
+        false
     }
 }
 
