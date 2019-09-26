@@ -1,6 +1,6 @@
 [package]
 name = "yubico"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Flavio Oliveira <flavio@wisespace.io>", "Pierre Larger <pierre.larger@gmail.com>"]
 
 description = "Yubikey client API library"
@@ -24,7 +24,7 @@ futures = {version = "0.1.23", optional = true}
 hmac = "^0.7"
 rand = "0.6"
 reqwest = "0.9"
-sha-1 = "^0.8"
+sha-1 = "0.8"
 subtle = "2.0"
 threadpool = "1.7"
 url = "1.7"
