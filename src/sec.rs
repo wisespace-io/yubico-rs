@@ -1,8 +1,8 @@
+use crate::yubicoerror::YubicoError;
 use base64::decode;
 use crypto_mac::{Mac, MacResult};
 use hmac::Hmac;
 use sha1::{Digest, Sha1};
-use yubicoerror::YubicoError;
 
 type HmacSha1 = Hmac<Sha1>;
 

@@ -84,9 +84,7 @@ impl fmt::Display for YubicoError {
             YubicoError::InvalidResponse => {
                 write!(f, "Invalid response from the validation server")
             }
-            YubicoError::InvalidOtp => {
-                write!(f, "Invalid OTP")
-            }
+            YubicoError::InvalidOtp => write!(f, "Invalid OTP"),
         }
     }
 }

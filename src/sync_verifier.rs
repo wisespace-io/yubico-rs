@@ -5,12 +5,12 @@ use reqwest::header::USER_AGENT;
 use threadpool::ThreadPool;
 
 use crate::build_request;
+use crate::config::Config;
+use crate::yubicoerror::YubicoError;
 use crate::Request;
 use crate::Result;
-use config::Config;
 use reqwest::Client;
 use std::sync::Arc;
-use yubicoerror::YubicoError;
 
 pub fn verify<S>(otp: S, config: Config) -> Result<String>
 where

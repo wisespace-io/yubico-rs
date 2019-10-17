@@ -1,23 +1,8 @@
-extern crate base64;
-extern crate crypto_mac;
 #[cfg(feature = "online-tokio")]
-extern crate futures;
-extern crate hmac;
-extern crate rand;
-extern crate reqwest;
-extern crate sha1;
-extern crate subtle;
-
-extern crate threadpool;
-#[macro_use]
-extern crate url;
-extern crate core;
-
-#[cfg(feature = "online-tokio")]
-pub mod async;
+pub mod async_verifier;
 pub mod config;
 mod sec;
-pub mod sync;
+pub mod sync_verifier;
 pub mod yubicoerror;
 
 use std::collections::BTreeMap;
@@ -27,12 +12,12 @@ use config::Config;
 use rand::distributions::Alphanumeric;
 use rand::rngs::OsRng;
 use rand::Rng;
-use url::percent_encoding::{utf8_percent_encode, SIMPLE_ENCODE_SET};
+use url::percent_encoding::{define_encode_set, utf8_percent_encode, SIMPLE_ENCODE_SET};
 use yubicoerror::YubicoError;
 
 #[cfg(feature = "online-tokio")]
-pub use async::verify_async;
-pub use sync::verify;
+pub use async_verifier::verify_async;
+pub use sync_verifier::verify;
 
 type Result<T> = ::std::result::Result<T, YubicoError>;
 
