@@ -9,7 +9,7 @@ use crate::config::Config;
 use crate::yubicoerror::YubicoError;
 use crate::Request;
 use crate::Result;
-use reqwest::Client;
+use reqwest::blocking::Client;
 use std::sync::Arc;
 
 pub fn verify<S>(otp: S, config: Config) -> Result<String>
