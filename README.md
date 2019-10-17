@@ -26,7 +26,7 @@ Add this to your Cargo.toml
 
 ```toml
 [dependencies]
-yubico = "0.7"
+yubico = "0.8"
 ```
 
 The following are a list of Cargo features that can be enabled or disabled:
@@ -37,7 +37,7 @@ You can enable or disable them using the example below:
 
   ```toml
   [dependencies.yubico]
-  version = "0.7"
+  version = "0.8"
   # don't include the default features (online)
   default-features = false
   # cherry-pick individual features
@@ -137,3 +137,7 @@ fn read_user_input() -> String {
     buf
 }
 ```
+
+## Changelog
+
+0.8: Rename the `sync` and `async` modules to `sync_verifier` and `async_verifier` to avoid the use of the `async` reserved keyword.

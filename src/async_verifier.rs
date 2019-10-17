@@ -1,12 +1,12 @@
 use futures::Future;
 use futures::Stream;
-use reqwest::async::Client;
 use reqwest::header::USER_AGENT;
+use reqwest::r#async::Client;
 
-use config::Config;
+use crate::config::Config;
+use crate::yubicoerror::YubicoError;
+use crate::{build_request, Result};
 use std::sync::Arc;
-use yubicoerror::YubicoError;
-use {build_request, Result};
 
 pub fn verify_async<S>(
     otp: S,
