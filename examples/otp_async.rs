@@ -1,15 +1,15 @@
-#![recursion_limit = "128"]
 extern crate futures;
 extern crate tokio;
 extern crate yubico;
 
-use futures::future::Future;
 use yubico::verify_async;
 
+use futures::TryFutureExt;
 use std::io::stdin;
 use yubico::config::Config;
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), ()> {
     println!("Please plug in a yubikey and enter an OTP");
 
     let client_id = std::env::var("YK_CLIENT_ID")
@@ -22,16 +22,10 @@ fn main() {
 
     let config = Config::default().set_client_id(client_id).set_key(api_key);
 
-    tokio::run(
-        verify_async(otp, config)
-            .unwrap()
-            .map(|_| {
-                println!("Valid OTP.");
-            })
-            .map_err(|err| {
-                println!("Invalid OTP. Cause: {:?}", err);
-            }),
-    )
+    verify_async(otp, config)
+        .map_ok(|()| println!("Valid OTP."))
+        .map_err(|err| println!("Invalid OTP. Cause: {:?}", err))
+        .await
 }
 
 fn read_user_input() -> String {

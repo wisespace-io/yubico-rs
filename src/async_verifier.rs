@@ -1,21 +1,18 @@
-use futures::Future;
-use futures::Stream;
 use reqwest::header::USER_AGENT;
-use reqwest::r#async::Client;
+use reqwest::Client;
 
 use crate::config::Config;
 use crate::yubicoerror::YubicoError;
-use crate::{build_request, Result};
+use crate::{build_request, Request, Result};
+use futures::stream::FuturesUnordered;
+use futures::StreamExt;
 use std::sync::Arc;
 
-pub fn verify_async<S>(
-    otp: S,
-    config: Config,
-) -> Result<impl Future<Item = (), Error = YubicoError>>
+pub async fn verify_async<S>(otp: S, config: Config) -> Result<()>
 where
     S: Into<String>,
 {
-    AsyncVerifier::new(config)?.verify(otp)
+    AsyncVerifier::new(config)?.verify(otp).await
 }
 
 pub struct AsyncVerifier {
@@ -30,72 +27,50 @@ impl AsyncVerifier {
         Ok(AsyncVerifier { client, config })
     }
 
-    pub fn verify<S>(&self, otp: S) -> Result<impl Future<Item = (), Error = YubicoError>>
+    pub async fn verify<S>(&self, otp: S) -> Result<()>
     where
         S: Into<String>,
     {
-        let request = build_request(otp, &self.config)?;
-        let request = Arc::new(request); // Arc because we need the future to be Send.
+        let request = Arc::new(build_request(otp, &self.config)?); // Arc because we need the future to be Send.
 
-        let mut urls = vec![];
-        for api_host in &self.config.api_hosts {
-            let url = request.build_url(api_host);
+        let mut responses = FuturesUnordered::new();
+        self.config
+            .api_hosts
+            .iter()
+            .for_each(|api_host| responses.push(self.request(request.clone(), api_host)));
 
-            urls.push(url);
+        let mut errors = vec![];
+
+        while let Some(response) = responses.next().await {
+            match response {
+                Ok(()) => return Ok(()),
+                Err(err @ YubicoError::ReplayedRequest) => errors.push(err),
+                Err(YubicoError::HTTPStatusCode(code)) => {
+                    errors.push(YubicoError::HTTPStatusCode(code))
+                }
+                Err(err) => return Err(err),
+            }
         }
 
-        let req_futures = urls.iter().map(|url| {
-            let request = request.clone();
-
-            self.request(&url).and_then(move |raw_response| {
-                request.response_verifier.verify_response(raw_response)
-            })
-        });
-
-        Ok(futures::stream::futures_unordered(req_futures)
-            .then(|result| {
-                // Interrupt the stream if: the OTP is valid or an error different than an HTTP error or a ReplayedRequest is returned.
-                // This is inspired by the official C client.
-                match result {
-                    // Wrap these in Ok to continue the stream.
-                    Err(YubicoError::ReplayedRequest) => Ok(YubicoError::ReplayedRequest),
-                    Err(YubicoError::HTTPStatusCode(code)) => Ok(YubicoError::HTTPStatusCode(code)),
-                    // Wrap these in Err to interrupt the stream.
-                    Err(err) => Err(Err(err)),
-                    Ok(()) => Err(Ok(())),
-                }
-            })
-            .collect()
-            .then(|result| match result {
-                Ok(less_relevant_errs) => Err(YubicoError::MultipleErrors(less_relevant_errs)),
-                Err(Ok(())) => Ok(()),
-                Err(Err(err)) => Err(err),
-            }))
+        Err(YubicoError::MultipleErrors(errors))
     }
 
-    fn request(&self, url: &str) -> impl Future<Item = String, Error = YubicoError> {
-        let request = self
+    async fn request(&self, request: Arc<Request>, api_host: &str) -> Result<()> {
+        let url = request.build_url(api_host);
+        let http_request = self
             .client
-            .get(url)
+            .get(&url)
             .header(USER_AGENT, self.config.user_agent.clone());
 
-        request
-            .send()
-            .map_err(YubicoError::from)
-            .then(|result| {
-                let response = result?;
-                let status_code = response.status();
+        let response = http_request.send().await?;
+        let status_code = response.status();
 
-                if status_code.is_success() {
-                    Ok(response)
-                } else {
-                    Err(YubicoError::HTTPStatusCode(status_code))
-                }
-            })
-            .and_then(|response| response.into_body().concat2().map_err(YubicoError::from))
-            .map(|chunks| {
-                // TODO This implies a copy.
-                String::from_utf8_lossy(&*chunks).to_string()
-            })
+        if !status_code.is_success() {
+            return Err(YubicoError::HTTPStatusCode(status_code));
+        }
+
+        let text = response.text().await?;
+
+        request.response_verifier.verify_response(text)
     }
 }
