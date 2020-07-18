@@ -90,37 +90,6 @@ impl fmt::Display for YubicoError {
 }
 
 impl StdError for YubicoError {
-    fn description(&self) -> &str {
-        match *self {
-            YubicoError::ConfigurationError(ref err) => err.description(),
-            YubicoError::Network(ref err) => err.description(),
-            YubicoError::HTTPStatusCode(_) => "200 not received",
-            YubicoError::IOError(ref err) => err.description(),
-            YubicoError::ChannelError(ref err) => err.description(),
-            YubicoError::DecodeError(ref err) => err.description(),
-            #[cfg(feature = "online-tokio")]
-            YubicoError::MultipleErrors(ref _errs) => {
-                "Multiple errors. "
-            }
-            YubicoError::BadOTP => "The OTP has invalid format.",
-            YubicoError::ReplayedOTP => "The OTP has already been seen by the service.",
-            YubicoError::BadSignature => "The HMAC signature verification failed.",
-            YubicoError::MissingParameter => "The request lacks a parameter.",
-            YubicoError::NoSuchClient => "The request id does not exist.",
-            YubicoError::OperationNotAllowed => "The request id is not allowed to verify OTPs.",
-            YubicoError::BackendError => "Unexpected error in our server. Please contact us if you see this error.",
-            YubicoError::NotEnoughAnswers => "Server could not get requested number of syncs during before timeout",
-            YubicoError::ReplayedRequest => "Server has seen the OTP/Nonce combination before",
-            YubicoError::UnknownStatus => "Unknown status sent by the OTP validation server",
-            YubicoError::OTPMismatch => "OTP in the response is the same as the supplied in the request. It may be an attack attempt",
-            YubicoError::NonceMismatch => "Nonce in the response is the same as the supplied in the request. It may be an attack attempt",
-            YubicoError::SignatureMismatch => "Signature in the response is the same as the supplied in the request. It may be an attack attempt",
-            YubicoError::InvalidKeyLength => "Invalid key length",
-            YubicoError::InvalidResponse => "Invalid response from the validation server",
-            YubicoError::InvalidOtp => "Invalid OTP",
-        }
-    }
-
     fn cause(&self) -> Option<&dyn StdError> {
         match *self {
             YubicoError::Network(ref err) => Some(err),

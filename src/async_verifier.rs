@@ -22,7 +22,14 @@ pub struct AsyncVerifier {
 
 impl AsyncVerifier {
     pub fn new(config: Config) -> Result<AsyncVerifier> {
-        let client = Client::builder().timeout(config.request_timeout).build()?;
+        let client = 
+            if config.proxy_url != "" && config.proxy_username == "" {
+                AsyncVerifier::get_client_proxy(config.clone())?
+            } else if config.proxy_url != "" && config.proxy_username != "" {
+                AsyncVerifier::get_client_proxy_with_auth(config.clone())?
+            } else {
+                Client::builder().timeout(config.request_timeout).build()?
+            };
 
         Ok(AsyncVerifier { client, config })
     }
@@ -72,5 +79,17 @@ impl AsyncVerifier {
         let text = response.text().await?;
 
         request.response_verifier.verify_response(text)
+    }
+
+    fn get_client_proxy(config: Config) -> Result<Client> {
+        Ok(Client::builder()
+            .timeout(config.request_timeout)
+            .proxy(reqwest::Proxy::all(&config.proxy_url)?).build()?)
+    }
+
+    fn get_client_proxy_with_auth(config: Config) -> Result<Client> {
+        let proxy = reqwest::Proxy::all(&config.proxy_url)?
+            .basic_auth(&config.proxy_username, &config.proxy_password);
+        Ok(Client::builder().timeout(config.request_timeout).proxy(proxy).build()?)
     }
 }

@@ -28,7 +28,14 @@ pub struct Verifier {
 impl Verifier {
     pub fn new(config: Config) -> Result<Verifier> {
         let number_of_hosts = config.api_hosts.len();
-        let client = Client::builder().timeout(config.request_timeout).build()?;
+        let client = 
+            if config.proxy_url != "" && config.proxy_username == "" {
+                Verifier::get_client_proxy(config.clone())?
+            } else if config.proxy_url != "" && config.proxy_username != "" {
+                Verifier::get_client_proxy_with_auth(config.clone())?
+            } else {
+                Client::builder().timeout(config.request_timeout).build()?
+            };
 
         Ok(Verifier {
             config,
@@ -83,6 +90,18 @@ impl Verifier {
         } else {
             results.pop().ok_or_else(|| YubicoError::InvalidOtp)?
         }
+    }
+
+    fn get_client_proxy(config: Config) -> Result<Client> {
+        Ok(Client::builder()
+            .timeout(config.request_timeout)
+            .proxy(reqwest::Proxy::all(&config.proxy_url)?).build()?)
+    }
+
+    fn get_client_proxy_with_auth(config: Config) -> Result<Client> {
+        let proxy = reqwest::Proxy::all(&config.proxy_url)?
+            .basic_auth(&config.proxy_username, &config.proxy_password);
+        Ok(Client::builder().timeout(config.request_timeout).proxy(proxy).build()?)
     }
 }
 

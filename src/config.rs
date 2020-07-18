@@ -60,6 +60,9 @@ pub struct Config {
     pub sync_level: SyncLevel,
     /// The timeout for HTTP requests.
     pub request_timeout: Duration,
+    pub proxy_url: String,
+    pub proxy_username: String,
+    pub proxy_password: String,
 }
 
 #[allow(dead_code)]
@@ -72,6 +75,9 @@ impl Config {
             user_agent: "github.com/wisespace-io/yubico-rs".to_string(),
             sync_level: SyncLevel::secure(),
             request_timeout: Duration::from_secs(30), // Value taken from the reqwest crate.
+            proxy_url: String::new(),
+            proxy_username: String::new(),
+            proxy_password: String::new(),
         }
     }
 
@@ -110,6 +116,30 @@ impl Config {
         self.request_timeout = timeout;
         self
     }
+
+    pub fn set_proxy_url<P>(mut self, proxy_url: P) -> Self
+    where
+        P: Into<String>,
+    {
+        self.proxy_url = proxy_url.into();
+        self
+    }  
+    
+    pub fn set_proxy_username<U>(mut self, proxy_username: U) -> Self
+    where
+        U: Into<String>,
+    {
+        self.proxy_username = proxy_username.into();
+        self
+    }
+    
+    pub fn set_proxy_password<P>(mut self, proxy_password: P) -> Self
+    where
+        P: Into<String>,
+    {
+        self.proxy_password = proxy_password.into();
+        self
+    }    
 }
 
 fn build_hosts() -> Vec<String> {
