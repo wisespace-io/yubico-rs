@@ -140,6 +140,7 @@ fn read_user_input() -> String {
 
 ## Changelog
 
-0.9.0: Moving to `tokio` 0.2 and `reqwest` 0.10
-0.9.0-alpha.1: Moving to `futures` 0.3.0-alpha.19 
-0.8: Rename the `sync` and `async` modules to `sync_verifier` and `async_verifier` to avoid the use of the `async` reserved keyword.
+    - 0.9.1: Set HTTP Proxy (Basic-auth is optional)
+    - 0.9.0: Moving to `tokio` 0.2 and `reqwest` 0.10
+    - 0.9.0-alpha.1: Moving to `futures` 0.3.0-alpha.19 
+    - 0.8: Rename the `sync` and `async` modules to `sync_verifier` and `async_verifier` to avoid the use of the `async` reserved keyword.
