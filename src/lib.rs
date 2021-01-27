@@ -56,9 +56,7 @@ impl ResponseVerifier {
             let signature_response: &str = &*response_map
                 .get("h")
                 .ok_or_else(|| YubicoError::InvalidResponse)?;
-            if !is_same_signature(signature_response, response_map.clone(), &self.key) {
-                return Err(YubicoError::SignatureMismatch);
-            }
+            verify_signature(signature_response, response_map.clone(), &self.key)?;
 
             // Check if "otp" in the response is the same as the "otp" supplied in the request.
             let otp_response: &str = &*response_map
@@ -114,7 +112,7 @@ where
         match sec::build_signature(&config.key, query.as_bytes()) {
             Ok(signature) => {
                 // Base 64 encode the resulting value according to RFC 4648
-                let encoded_signature = encode(&signature.code());
+                let encoded_signature = encode(&signature.into_bytes());
 
                 // Append the value under key h to the message.
                 let signature_param = format!("&h={}", encoded_signature);
@@ -153,20 +151,20 @@ fn printable_characters(otp: &str) -> bool {
 }
 
 fn generate_nonce() -> String {
-    OsRng::new()
-        .unwrap()
+    OsRng{}
         .sample_iter(&Alphanumeric)
+        .map(char::from)
         .take(40)
         .collect()
 }
 
 // Remove the signature itself from the values over for verification.
 // Sort the key/value pairs.
-fn is_same_signature(
+fn verify_signature(
     signature_response: &str,
     mut response_map: BTreeMap<String, String>,
     key: &[u8],
-) -> bool {
+) -> Result<()> {
     response_map.remove("h");
 
     let mut query = String::new();
@@ -176,15 +174,8 @@ fn is_same_signature(
     }
     query.pop(); // remove last &
 
-    if let Ok(signature) = sec::build_signature(key, query.as_bytes()) {
-        let decoded_signature = &decode(signature_response).unwrap()[..];
-
-        use subtle::ConstantTimeEq;
-
-        signature.code().ct_eq(decoded_signature).into()
-    } else {
-        false
-    }
+    let decoded_signature = &decode(signature_response).unwrap()[..];
+    sec::verify_signature(key, query.as_bytes(), decoded_signature)
 }
 
 fn build_response_map(result: String) -> BTreeMap<String, String> {
