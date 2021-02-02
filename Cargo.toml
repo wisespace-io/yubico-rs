@@ -19,19 +19,18 @@ name = "yubico"
 path = "src/lib.rs"
 
 [dependencies]
-base64 = "0.12"
-crypto-mac = "0.7"
+base64 = "0.13"
+crypto-mac = "0.10"
 futures = { version = "0.3", optional = true }
-hmac = "^0.7"
-rand = "0.6"
-reqwest = { version = "0.10", features = ["blocking"] }
-sha-1 = "0.8"
-subtle = "2.2"
-threadpool = "1.8"
+hmac = "0.10"
+rand = "0.8"
+reqwest = { version = "0.11", features = ["blocking"] }
+sha-1 = "0.9"
+threadpool = "1.7"
 url = "1.7"
 
 [dev-dependencies]
-tokio = { version = "0.2", features = ["macros"] }
+tokio = { version = "1.1", features = ["macros"] }
 futures = "0.3"
 
 [features]
