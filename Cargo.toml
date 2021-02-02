@@ -1,6 +1,6 @@
 [package]
 name = "yubico"
-version = "0.9.1"
+version = "0.9.2"
 authors = ["Flavio Oliveira <flavio@wisespace.io>", "Pierre Larger <pierre.larger@gmail.com>"]
 edition = "2018"
 
