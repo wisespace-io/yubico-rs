@@ -140,7 +140,8 @@ fn read_user_input() -> String {
 
 ## Changelog
 
-    - 0.9.2: Dependencies update
+    - 0.10.0: Upgrade to `tokio` 1.1 and `reqwest` 0.11
+    - 0.9.2: (Yanked) Dependencies update
     - 0.9.1: Set HTTP Proxy (Basic-auth is optional)
     - 0.9.0: Moving to `tokio` 0.2 and `reqwest` 0.10
     - 0.9.0-alpha.1: Moving to `futures` 0.3.0-alpha.19 
