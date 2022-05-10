@@ -20,14 +20,13 @@ path = "src/lib.rs"
 
 [dependencies]
 base64 = "0.13"
-crypto-mac = "0.10"
 futures = { version = "0.3", optional = true }
-hmac = "0.10"
+hmac = "0.12"
 rand = "0.8"
 reqwest = { version = "0.11", features = ["blocking"] }
-sha-1 = "0.9"
+sha1 = "0.10"
 threadpool = "1.7"
-url = "1.7"
+form_urlencoded = "1"
 
 [dev-dependencies]
 tokio = { version = "1.1", features = ["macros"] }

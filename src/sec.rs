@@ -1,7 +1,6 @@
 use crate::yubicoerror::YubicoError;
 use base64::decode;
-use crypto_mac::{Mac, NewMac, Output};
-use hmac::Hmac;
+use hmac::{digest::CtOutput, Hmac, Mac};
 use sha1::Sha1;
 
 type HmacSha1 = Hmac<Sha1>;
@@ -10,10 +9,10 @@ type HmacSha1 = Hmac<Sha1>;
 pub fn build_signature(
     key: &[u8],
     input: &[u8],
-) -> Result<Output<HmacSha1>, YubicoError> {
+) -> Result<CtOutput<HmacSha1>, YubicoError> {
     let decoded_key = decode(key)?;
 
-    let mut hmac = match HmacSha1::new_varkey(&decoded_key) {
+    let mut hmac = match HmacSha1::new_from_slice(&decoded_key) {
         Ok(h) => h,
         Err(_) => return Err(YubicoError::InvalidKeyLength),
     };
@@ -28,10 +27,10 @@ pub fn verify_signature(
 ) -> Result<(), YubicoError> {
     let decoded_key = decode(key)?;
 
-    let mut hmac = match HmacSha1::new_varkey(&decoded_key) {
+    let mut hmac = match HmacSha1::new_from_slice(&decoded_key) {
         Ok(h) => h,
         Err(_) => return Err(YubicoError::InvalidKeyLength),
     };
     hmac.update(input);
-    hmac.verify(expected).map_err(|_| YubicoError::SignatureMismatch)
+    hmac.verify_slice(expected).map_err(|_| YubicoError::SignatureMismatch)
 }
