@@ -138,6 +138,26 @@ fn read_user_input() -> String {
 }
 ```
 
+## Docker
+
+For convenience and reproducibility, a Docker image can be generated via the provided repo's Dockerfile.
+
+Build:
+```bash
+/tmp/tmp.PUlYOqoG3a/yubico-rs add/dockerfile » docker build -t yubico-rs .
+...
+Successfully built 983cc040c78e                                                                           
+Successfully tagged yubico-rs:latest
+```
+
+Run:
+```bash
+/tmp/tmp.PUlYOqoG3a/yubico-rs add/dockerfile » docker run --rm -it -e YK_CLIENT_ID=XXXXX -e YK_API_KEY=XXXXXXXXXXXXXX yubico-rs:latest
+Please plug in a yubikey and enter an OTP
+ccccccXXXXXXXXXXXXXXXXXXXX
+The OTP is valid.
+```
+
 ## Changelog
 
     - 0.10.0: Upgrade to `tokio` 1.1 and `reqwest` 0.11
