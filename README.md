@@ -144,7 +144,7 @@ For convenience and reproducibility, a Docker image can be generated via the pro
 
 Build:
 ```bash
-/tmp/tmp.PUlYOqoG3a/yubico-rs add/dockerfile » docker build -t yubico-rs .
+$ docker build -t yubico-rs .
 ...
 Successfully built 983cc040c78e                                                                           
 Successfully tagged yubico-rs:latest
@@ -152,7 +152,7 @@ Successfully tagged yubico-rs:latest
 
 Run:
 ```bash
-/tmp/tmp.PUlYOqoG3a/yubico-rs add/dockerfile » docker run --rm -it -e YK_CLIENT_ID=XXXXX -e YK_API_KEY=XXXXXXXXXXXXXX yubico-rs:latest
+$ docker run --rm -it -e YK_CLIENT_ID=XXXXX -e YK_API_KEY=XXXXXXXXXXXXXX yubico-rs:latest
 Please plug in a yubikey and enter an OTP
 ccccccXXXXXXXXXXXXXXXXXXXX
 The OTP is valid.
