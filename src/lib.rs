@@ -12,7 +12,6 @@ use config::Config;
 use rand::distributions::Alphanumeric;
 use rand::rngs::OsRng;
 use rand::Rng;
-use url::percent_encoding::{define_encode_set, utf8_percent_encode, SIMPLE_ENCODE_SET};
 use yubicoerror::YubicoError;
 
 #[cfg(feature = "online-tokio")]
@@ -20,11 +19,6 @@ pub use async_verifier::verify_async;
 pub use sync_verifier::verify;
 
 type Result<T> = ::std::result::Result<T, YubicoError>;
-
-define_encode_set! {
-    /// This encode set is used in the URL parser for query strings.
-    pub QUERY_ENCODE_SET = [SIMPLE_ENCODE_SET] | {'+', '='}
-}
 
 #[derive(Clone)]
 pub struct Request {
@@ -104,21 +98,23 @@ where
 
     if printable_characters(&str_otp) {
         let nonce: String = generate_nonce();
-        let mut query = format!(
-            "id={}&nonce={}&otp={}&sl={}",
-            config.client_id, nonce, str_otp, config.sync_level
-        );
+        let mut query = form_urlencoded::Serializer::new(String::new());
+        query.append_pair("id", &config.client_id);
+        query.append_pair("nonce", &nonce);
+        query.append_pair("otp", &str_otp);
+        query.append_pair("sl", &config.sync_level.to_string());
 
+        let query = query.finish();
         match sec::build_signature(&config.key, query.as_bytes()) {
             Ok(signature) => {
+                // Recover the query
+                let mut query = form_urlencoded::Serializer::new(query);
+
                 // Base 64 encode the resulting value according to RFC 4648
                 let encoded_signature = encode(&signature.into_bytes());
 
                 // Append the value under key h to the message.
-                let signature_param = format!("&h={}", encoded_signature);
-                let encoded = utf8_percent_encode(signature_param.as_ref(), QUERY_ENCODE_SET)
-                    .collect::<String>();
-                query.push_str(encoded.as_ref());
+                query.append_pair("h", &encoded_signature);
 
                 let verifier = ResponseVerifier {
                     otp: str_otp,
@@ -127,7 +123,7 @@ where
                 };
 
                 let request = Request {
-                    query,
+                    query: query.finish(),
                     response_verifier: verifier,
                 };
 
